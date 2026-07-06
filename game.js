@@ -2471,7 +2471,11 @@ function handleKeyUp(e) { keys[e.key] = false; }
 window.addEventListener('keydown', handleKeyDown);
 window.addEventListener('keyup', handleKeyUp);
 
-canvas.addEventListener('mousedown', (e) => { if(e.button === 0 && gameRunning){ performMelee(); } });
+canvas.addEventListener('mousedown', (e) => { 
+    if(e.button === 0 && gameRunning){ 
+        performMelee(); 
+    } 
+});
 
 function setupMobileControls(){
     const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -2504,11 +2508,274 @@ function setupMobileControls(){
     }
 }
 
+// ==================== НАСТРОЙКИ ====================
 const soundToggle = document.getElementById('soundToggle');
-if(soundToggle) soundToggle.addEventListener('change', (e) => { CONFIG.audio.enabled = e.target.checked; AudioSys.enabled = e.target.checked; });
-const particlesToggle = document.getElementById('particlesToggle');
-if(particlesToggle) particlesToggle.addEventListener('change', (e) => { CONFIG.particles.enabled = e.target.checked; if(!e.target.checked && particlePool) particlePool.releaseAll(); });
+if(soundToggle) soundToggle.addEventListener('change', (e) => { 
+    CONFIG.audio.enabled = e.target.checked; 
+    AudioSys.enabled = e.target.checked; 
+});
 
+const particlesToggle = document.getElementById('particlesToggle');
+if(particlesToggle) particlesToggle.addEventListener('change', (e) => { 
+    CONFIG.particles.enabled = e.target.checked; 
+    if(!e.target.checked && particlePool) particlePool.releaseAll(); 
+});
+
+// ==================== СИСТЕМА МОДОВ ====================
+let installedMods = JSON.parse(localStorage.getItem('kolblocks_mods')) || [];
+
+function openModsMenu() {
+    gameRunning = false;
+    if (gameLoopId) cancelAnimationFrame(gameLoopId);
+    document.getElementById('pauseMenu').style.display = 'none';
+    document.getElementById('modsMenuScreen').style.display = 'flex';
+    renderModsList();
+}
+
+function closeModsMenu() {
+    document.getElementById('modsMenuScreen').style.display = 'none';
+    gameRunning = true;
+    if (gameLoopId) cancelAnimationFrame(gameLoopId);
+    gameLoop();
+}
+
+function installMod() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.qbm';
+    input.style.display = 'none';
+    document.body.appendChild(input);
+    
+    input.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            try {
+                const content = event.target.result;
+                const modData = parseModFile(content);
+                if (modData) {
+                    if (modData.codeword !== 'ПРИВНЁСА ПОНОСА') {
+                        alert('❌ Ошибка: неверное кодовое слово!\nМод не будет установлен.');
+                        return;
+                    }
+                    
+                    const exists = installedMods.some(m => m.name === modData.name);
+                    if (exists) {
+                        alert('❌ Мод с таким названием уже установлен!');
+                        return;
+                    }
+                    
+                    modData.id = Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+                    modData.enabled = true;
+                    installedMods.push(modData);
+                    saveMods();
+                    renderModsList();
+                    
+                    if (modData.enabled) {
+                        applyMod(modData);
+                    }
+                    
+                    showModMessage('✅ Мод "' + modData.name + '" успешно установлен!');
+                }
+            } catch (err) {
+                alert('❌ Ошибка при чтении файла: ' + err.message);
+            }
+        };
+        reader.readAsText(file);
+        document.body.removeChild(input);
+    });
+    
+    input.click();
+}
+
+function parseModFile(content) {
+    const lines = content.split('\n');
+    const mod = {
+        avatar: '',
+        name: 'Без названия',
+        author: 'Неизвестен',
+        codeword: '',
+        code: ''
+    };
+    
+    let codeStart = false;
+    let codeLines = [];
+    
+    for (let line of lines) {
+        line = line.trim();
+        
+        if (line.startsWith('AVATAR:')) {
+            mod.avatar = line.substring(7).trim();
+        } else if (line.startsWith('NAME:')) {
+            mod.name = line.substring(5).trim();
+        } else if (line.startsWith('AUTHOR:')) {
+            mod.author = line.substring(7).trim();
+        } else if (line.startsWith('CODEWORD:')) {
+            mod.codeword = line.substring(9).trim();
+        } else if (line === '// Код мода (JavaScript)' || line === '// КОД МОДА') {
+            codeStart = true;
+        } else if (codeStart) {
+            codeLines.push(line);
+        }
+    }
+    
+    if (codeLines.length === 0) {
+        let found = false;
+        for (let line of lines) {
+            line = line.trim();
+            if (found) {
+                if (!line.startsWith('AVATAR:') && !line.startsWith('NAME:') && 
+                    !line.startsWith('AUTHOR:') && !line.startsWith('CODEWORD:')) {
+                    codeLines.push(line);
+                }
+            }
+            if (line.startsWith('CODEWORD:')) {
+                found = true;
+            }
+        }
+    }
+    
+    mod.code = codeLines.join('\n');
+    
+    if (!mod.codeword) {
+        alert('❌ Ошибка: в файле отсутствует CODEWORD!');
+        return null;
+    }
+    
+    return mod;
+}
+
+function applyMod(modData) {
+    try {
+        const fn = new Function('CONFIG', 'CLASSES', modData.code);
+        fn(CONFIG, CLASSES);
+        console.log('✅ Мод "' + modData.name + '" применён!');
+    } catch (err) {
+        console.error('❌ Ошибка при применении мода:', err);
+        alert('❌ Ошибка при применении мода: ' + err.message);
+    }
+}
+
+function toggleMod(id) {
+    const mod = installedMods.find(m => m.id === id);
+    if (!mod) return;
+    
+    mod.enabled = !mod.enabled;
+    saveMods();
+    renderModsList();
+    
+    if (mod.enabled) {
+        applyMod(mod);
+        showModMessage('✅ Мод "' + mod.name + '" включён!');
+    } else {
+        showModMessage('⛔ Мод "' + mod.name + '" выключен');
+        if (confirm('Для полного отключения мода требуется перезагрузка игры. Перезагрузить?')) {
+            location.reload();
+        }
+    }
+}
+
+function deleteMod(id) {
+    if (!confirm('Удалить этот мод?')) return;
+    
+    const mod = installedMods.find(m => m.id === id);
+    installedMods = installedMods.filter(m => m.id !== id);
+    saveMods();
+    renderModsList();
+    showModMessage('🗑️ Мод "' + (mod ? mod.name : '') + '" удалён');
+}
+
+function saveMods() {
+    localStorage.setItem('kolblocks_mods', JSON.stringify(installedMods));
+}
+
+function renderModsList() {
+    const container = document.getElementById('modsList');
+    const countSpan = document.getElementById('modsCount');
+    
+    if (!container) return;
+    
+    if (installedMods.length === 0) {
+        container.innerHTML = '<div style="color:#888; text-align:center; padding:20px;">Нет установленных модов</div>';
+        if (countSpan) countSpan.textContent = '0';
+        return;
+    }
+    
+    if (countSpan) countSpan.textContent = installedMods.length;
+    
+    container.innerHTML = '';
+    installedMods.forEach(mod => {
+        const div = document.createElement('div');
+        div.className = 'mod-item' + (mod.enabled ? ' active' : '');
+        
+        const avatarImg = document.createElement('img');
+        avatarImg.className = 'mod-avatar';
+        avatarImg.src = mod.avatar || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="0 0 50 50"%3E%3Crect width="50" height="50" fill="%23333"/%3E%3Ctext x="25" y="30" font-size="20" text-anchor="middle" fill="%23666"%3E📦%3C/text%3E%3C/svg%3E';
+        avatarImg.onerror = function() {
+            this.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="0 0 50 50"%3E%3Crect width="50" height="50" fill="%23333"/%3E%3Ctext x="25" y="30" font-size="20" text-anchor="middle" fill="%23666"%3E📦%3C/text%3E%3C/svg%3E';
+        };
+        div.appendChild(avatarImg);
+        
+        const info = document.createElement('div');
+        info.className = 'mod-info';
+        info.innerHTML = `
+            <div class="mod-name">${mod.name}</div>
+            <div class="mod-author">👤 ${mod.author}</div>
+            <div class="mod-status">${mod.enabled ? '🟢 Включён' : '🔴 Выключен'}</div>
+        `;
+        div.appendChild(info);
+        
+        const actions = document.createElement('div');
+        actions.className = 'mod-actions';
+        
+        const toggleBtn = document.createElement('button');
+        toggleBtn.className = 'mod-btn toggle' + (mod.enabled ? '' : ' off');
+        toggleBtn.textContent = mod.enabled ? 'ВКЛ' : 'ВЫКЛ';
+        toggleBtn.onclick = function(e) {
+            e.stopPropagation();
+            toggleMod(mod.id);
+        };
+        actions.appendChild(toggleBtn);
+        
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'mod-btn delete';
+        deleteBtn.textContent = '✕';
+        deleteBtn.onclick = function(e) {
+            e.stopPropagation();
+            deleteMod(mod.id);
+        };
+        actions.appendChild(deleteBtn);
+        
+        div.appendChild(actions);
+        container.appendChild(div);
+    });
+}
+
+function showModMessage(text) {
+    const msg = document.createElement('div');
+    msg.textContent = text;
+    msg.style.position = 'fixed';
+    msg.style.top = '50%';
+    msg.style.left = '50%';
+    msg.style.transform = 'translate(-50%, -50%)';
+    msg.style.color = '#4af626';
+    msg.style.fontSize = '20px';
+    msg.style.fontWeight = 'bold';
+    msg.style.backgroundColor = 'rgba(0,0,0,0.9)';
+    msg.style.padding = '15px 30px';
+    msg.style.borderRadius = '15px';
+    msg.style.border = '2px solid #4af626';
+    msg.style.zIndex = '9999';
+    msg.style.fontFamily = 'Unbounded, monospace';
+    msg.style.textAlign = 'center';
+    msg.style.maxWidth = '80%';
+    document.body.appendChild(msg);
+    safeTimeout(() => msg.remove(), 3000);
+}
+
+// ==================== ИНИЦИАЛИЗАЦИЯ ИГРЫ ====================
 async function initGame(){
     resizeCanvas();
     AudioSys.init();
@@ -2525,6 +2792,19 @@ async function initGame(){
         currentClass = savedClass;
     } else {
         currentClass = 'default';
+    }
+    
+    // Загружаем и применяем моды
+    installedMods = JSON.parse(localStorage.getItem('kolblocks_mods')) || [];
+    for (const mod of installedMods) {
+        if (mod.enabled) {
+            try {
+                const fn = new Function('CONFIG', 'CLASSES', mod.code);
+                fn(CONFIG, CLASSES);
+            } catch (err) {
+                console.error('Ошибка при загрузке мода "' + mod.name + '":', err);
+            }
+        }
     }
     
     let progress = 0;
@@ -2557,6 +2837,18 @@ async function initGame(){
     safeTimeout(() => { gameRunning = true; gameLoop(); }, 800);
 }
 
+// ==================== ЗАПУСК ====================
 window.addEventListener('load', initGame);
-window.addEventListener('resize', () => { resizeCanvas(); if(gameRunning){ generateLevel(currentLevel); if(player) player.reset(); applyClassStats(); cameraX = 0; } });
-document.addEventListener('touchmove', (e) => { if(!e.target.closest('#mobileControls')) e.preventDefault(); }, { passive: false });
+window.addEventListener('resize', () => { 
+    resizeCanvas(); 
+    if(gameRunning){ 
+        generateLevel(currentLevel); 
+        if(player) player.reset(); 
+        applyClassStats(); 
+        cameraX = 0; 
+    } 
+});
+
+document.addEventListener('touchmove', (e) => { 
+    if(!e.target.closest('#mobileControls')) e.preventDefault(); 
+}, { passive: false });
