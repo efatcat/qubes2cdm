@@ -1,4 +1,4 @@
-// game.js - QUBES FULL VERSION WITH CLASSES (Warrior, Archer, Mage, Rogue)
+// game.js - QUBES FULL VERSION WITH CLASSES (Warrior, Archer, Mage, Rogue) + DUMPLING ENEMY
 
 const CONFIG = {
     player: { width: 40, height: 40, speed: 6, jumpPower: 16, gravity: 0.8, friction: 0.85, dashSpeed: 20, dashDuration: 12, dashCooldown: 45, maxDashes: 2, doubleJump: true },
@@ -175,12 +175,13 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
 let particlePool;
-let platforms = [], enemies = [], flyingEnemies = [], vortexEnemies = [], coins = [], powerUps = [];
+let platforms = [], enemies = [], flyingEnemies = [], vortexEnemies = [], dumplingEnemies = [], dumplingProjectiles = [], coins = [], powerUps = [];
 let player, cameraX = 0, keys = {}, gameRunning = true, levelWidth = 0;
 let currentLevel = 1, score = 0, playerHealth = 100, maxHealth = 100;
 let comboCount = 1, maxCombo = 1, comboTimer = 0, comboMultiplier = 1;
 let screenShake = 0, shakeIntensity = 0, lastCheckpointX = 0, boss = null, bossesDefeated = 0;
 let levelKeys = [];
+let dumplingTexture = null;
 
 const platformTextures = [ {color: '#FF2E63', pattern: 'stripes'}, {color: '#08D9D6', pattern: 'dots'}, {color: '#FFDE7D', pattern: 'checker'}, {color: '#6A2C70', pattern: 'zigzag'}, {color: '#4ECDC4', pattern: 'bricks'}, {color: '#FF9A76', pattern: 'waves'} ];
 const enemyColors = ['#FF2E63', '#FFDE7D', '#6A2C70', '#08D9D6', '#AA00FF'];
@@ -389,6 +390,19 @@ function updateArrows() {
                 const ve = vortexEnemies[j];
                 if (ve.active && a.x > ve.x && a.x < ve.x + ve.width && a.y > ve.y && a.y < ve.y + ve.height) {
                     if (ve.takeDamage()) vortexEnemies.splice(j, 1);
+                    hit = true;
+                    updateCombo();
+                    for (let k = 0; k < 12; k++) particlePool.acquire(a.x, a.y, a.color || '#ffff00');
+                    break;
+                }
+            }
+        }
+        
+        if (!hit && dumplingEnemies) {
+            for (let j = 0; j < dumplingEnemies.length; j++) {
+                const de = dumplingEnemies[j];
+                if (de.active && a.x > de.x && a.x < de.x + de.width && a.y > de.y && a.y < de.y + de.height) {
+                    if (de.takeDamage()) dumplingEnemies.splice(j, 1);
                     hit = true;
                     updateCombo();
                     for (let k = 0; k < 12; k++) particlePool.acquire(a.x, a.y, a.color || '#ffff00');
@@ -747,6 +761,25 @@ class Player {
                 hitSomething = true;
                 updateCombo();
                 this.createHitEffect(veCenterX, veCenterY);
+            }
+        }
+        
+        for (let i = 0; i < dumplingEnemies.length; i++) {
+            const de = dumplingEnemies[i];
+            if (!de.active) continue;
+            const deCenterX = de.x + de.width/2;
+            const deCenterY = de.y + de.height/2;
+            const dist = Math.hypot(centerX - deCenterX, centerY - deCenterY);
+            if (dist < radius) {
+                for (let d = 0; d < damage; d++) {
+                    if (de.takeDamage()) {
+                        dumplingEnemies = dumplingEnemies.filter(x => x !== de);
+                        break;
+                    }
+                }
+                hitSomething = true;
+                updateCombo();
+                this.createHitEffect(deCenterX, deCenterY);
             }
         }
         
@@ -1462,6 +1495,287 @@ class VortexEnemy {
     }
 }
 
+// ==================== КЛАСС DUMPLINGENEMY (Китайский пельмень) ====================
+class DumplingEnemy {
+    constructor(x, y, stage = 1) {
+        this.x = x;
+        this.y = y;
+        this.stage = stage;
+        
+        if (stage === 1) {
+            this.width = 60;
+            this.height = 60;
+            this.baseHealth = 3;
+        } else if (stage === 2) {
+            this.width = 45;
+            this.height = 45;
+            this.baseHealth = 2;
+        } else {
+            this.width = 30;
+            this.height = 30;
+            this.baseHealth = 1;
+        }
+        
+        this.health = this.baseHealth;
+        this.maxHealth = this.baseHealth;
+        this.active = true;
+        this.color = '#f5deb3';
+        this.texture = null;
+        this.floatOffset = Math.random() * Math.PI * 2;
+        this.floatAmplitude = 3;
+        this.floatSpeed = 0.02;
+        this.floatY = 0;
+        
+        this.spitCooldown = 0;
+        this.spitRadius = 0;
+        this.isAggressive = false;
+        
+        if (!dumplingTexture) {
+            dumplingTexture = new Image();
+            dumplingTexture.crossOrigin = 'anonymous';
+            dumplingTexture.src = 'https://avatars.mds.yandex.net/i?id=93e329dd319f7ecb58a5ef4c6c8cd050_sr-12601053-images-thumbs&n=13';
+        }
+        this.texture = dumplingTexture;
+        
+        this.applyClassModifiers();
+    }
+    
+    applyClassModifiers() {
+        if (currentClass === 'warrior') {
+            this.health = this.baseHealth * 2;
+            this.maxHealth = this.health;
+            this.spitRadius = 200;
+            this.isAggressive = true;
+        } else if (currentClass === 'mage') {
+            this.health = Math.ceil(this.baseHealth * 1.5);
+            this.maxHealth = this.health;
+            this.spitRadius = 400;
+            this.isAggressive = true;
+        }
+    }
+    
+    update() {
+        if (!this.active) return;
+        
+        this.floatOffset += this.floatSpeed;
+        this.floatY = Math.sin(this.floatOffset) * this.floatAmplitude;
+        
+        if (this.isAggressive && this.spitCooldown <= 0 && player && player.active !== false) {
+            const dx = player.x + player.width / 2 - (this.x + this.width / 2);
+            const dy = player.y + player.height / 2 - (this.y + this.height / 2);
+            const dist = Math.hypot(dx, dy);
+            
+            if (dist < this.spitRadius) {
+                this.spitJuice(dx, dy, dist);
+                this.spitCooldown = 90 + Math.random() * 60;
+            }
+        }
+        
+        if (this.spitCooldown > 0) this.spitCooldown--;
+        
+        this.y += 0.6;
+        for (let platform of platforms) {
+            if (this.x < platform.x + platform.width &&
+                this.x + this.width > platform.x &&
+                this.y + this.height > platform.y &&
+                this.y + this.height < platform.y + 30) {
+                this.y = platform.y - this.height;
+            }
+        }
+    }
+    
+    spitJuice(dx, dy, dist) {
+        const angle = Math.atan2(dy, dx);
+        const speed = 5;
+        const startX = this.x + this.width / 2;
+        const startY = this.y + this.height / 2;
+        
+        dumplingProjectiles.push({
+            x: startX,
+            y: startY,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            active: true,
+            damage: 8,
+            size: 8,
+            color: '#90ee90'
+        });
+        
+        AudioSys.play(440, 0.1, 'sine', 0.1);
+    }
+    
+    takeDamage(amount = 1) {
+        this.health -= amount;
+        
+        for (let i = 0; i < 10; i++) {
+            particlePool.acquire(
+                this.x + Math.random() * this.width,
+                this.y + Math.random() * this.height,
+                '#f5deb3'
+            );
+        }
+        
+        if (this.health <= 0) {
+            this.destroy();
+            return true;
+        }
+        return false;
+    }
+    
+    destroy() {
+        this.active = false;
+        
+        if (this.stage === 1) {
+            for (let i = 0; i < 2; i++) {
+                const offsetX = (i === 0 ? -30 : 30);
+                dumplingEnemies.push(new DumplingEnemy(this.x + offsetX, this.y, 2));
+            }
+        } else if (this.stage === 2) {
+            for (let i = 0; i < 2; i++) {
+                const offsetX = (i === 0 ? -20 : 20);
+                dumplingEnemies.push(new DumplingEnemy(this.x + offsetX, this.y, 3));
+            }
+        }
+        
+        const scoreValue = this.stage === 1 ? 150 : this.stage === 2 ? 100 : 50;
+        addScore(scoreValue * comboMultiplier);
+        updateCombo();
+        AudioSys.collect();
+        
+        for (let i = 0; i < 20; i++) {
+            particlePool.acquire(
+                this.x + this.width / 2 + (Math.random() - 0.5) * this.width,
+                this.y + this.height / 2 + (Math.random() - 0.5) * this.height,
+                '#f5deb3'
+            );
+        }
+        
+        if (Math.random() < 0.3) {
+            coins.push({x: this.x + this.width / 2, y: this.y + this.height / 2, size: 12, color: '#FFDE7D', bounce: 0});
+        }
+    }
+    
+    draw(ctx) {
+        if (!this.active) return;
+        
+        const drawX = this.x - cameraX;
+        const drawY = this.y + this.floatY;
+        
+        if (this.texture && this.texture.complete && this.texture.naturalWidth > 0) {
+            ctx.save();
+            ctx.shadowColor = '#f5deb3';
+            ctx.shadowBlur = 10;
+            ctx.drawImage(this.texture, drawX, drawY, this.width, this.height);
+            ctx.restore();
+        } else {
+            ctx.fillStyle = this.color;
+            ctx.beginPath();
+            ctx.ellipse(drawX + this.width / 2, drawY + this.height / 2, this.width / 2, this.height / 2.5, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.strokeStyle = '#d2b48c';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for (let i = 0; i < 8; i++) {
+                const angle = (i / 8) * Math.PI * 2;
+                const r = this.width / 2;
+                const px = drawX + this.width / 2 + Math.cos(angle) * r;
+                const py = drawY + this.height / 2 + Math.sin(angle) * r * 0.6;
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.stroke();
+        }
+        
+        if (this.health < this.maxHealth) {
+            ctx.fillStyle = '#333';
+            ctx.fillRect(drawX, drawY - 10, this.width, 4);
+            ctx.fillStyle = '#4af626';
+            ctx.fillRect(drawX, drawY - 10, (this.width * this.health) / this.maxHealth, 4);
+        }
+        
+        if (this.isAggressive) {
+            ctx.fillStyle = 'rgba(255, 100, 100, 0.1)';
+            ctx.beginPath();
+            ctx.arc(drawX + this.width / 2, drawY + this.height / 2, this.spitRadius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+}
+
+function updateDumplingProjectiles() {
+    for (let i = dumplingProjectiles.length - 1; i >= 0; i--) {
+        const proj = dumplingProjectiles[i];
+        if (!proj.active) {
+            dumplingProjectiles.splice(i, 1);
+            continue;
+        }
+        
+        proj.x += proj.vx;
+        proj.y += proj.vy;
+        
+        let hitPlatform = false;
+        for (let platform of platforms) {
+            if (proj.x > platform.x && proj.x < platform.x + platform.width &&
+                proj.y > platform.y && proj.y < platform.y + platform.height) {
+                hitPlatform = true;
+                break;
+            }
+        }
+        
+        if (hitPlatform) {
+            proj.active = false;
+            for (let j = 0; j < 8; j++) {
+                particlePool.acquire(proj.x, proj.y, proj.color);
+            }
+            continue;
+        }
+        
+        if (player && player.active !== false && !player.isDashing && player.invulnerable <= 0) {
+            const dx = player.x + player.width / 2 - proj.x;
+            const dy = player.y + player.height / 2 - proj.y;
+            const dist = Math.hypot(dx, dy);
+            
+            if (dist < proj.size + player.width / 2) {
+                player.takeDamage(proj.damage, proj.vx * 2, -5, proj.color);
+                proj.active = false;
+                for (let j = 0; j < 12; j++) {
+                    particlePool.acquire(proj.x, proj.y, proj.color);
+                }
+            }
+        }
+        
+        if (proj.x < cameraX - 100 || proj.x > cameraX + canvas.width + 100 ||
+            proj.y < -100 || proj.y > canvas.height + 100) {
+            proj.active = false;
+        }
+    }
+}
+
+function drawDumplingProjectiles() {
+    for (const proj of dumplingProjectiles) {
+        if (!proj.active) continue;
+        
+        ctx.fillStyle = proj.color;
+        ctx.shadowColor = proj.color;
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(proj.x - cameraX, proj.y, proj.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+    }
+}
+
+function checkDumplingCollisions() {
+    for (let d of dumplingEnemies) {
+        if (d.active && player.checkCollision(d)) {
+            const damage = d.stage === 1 ? 15 : d.stage === 2 ? 10 : 5;
+            if (player.takeDamage(damage, d.x < player.x ? 8 : -8, -5, '#f5deb3')) return;
+        }
+    }
+}
+
 // ==================== КЛАСС PLATFORM ====================
 class Platform { 
     constructor(x,y,width,textureIndex){
@@ -1672,7 +1986,7 @@ class Boss {
 
 // ==================== ГЕНЕРАЦИЯ УРОВНЯ ====================
 function generateLevel(level){ 
-    platforms=[]; enemies=[]; flyingEnemies=[]; vortexEnemies=[]; coins=[]; powerUps=[]; levelKeys=[]; 
+    platforms=[]; enemies=[]; flyingEnemies=[]; vortexEnemies=[]; dumplingEnemies=[]; dumplingProjectiles=[]; coins=[]; powerUps=[]; levelKeys=[]; 
     roundCoins=0; roundDamage=0; 
     const minHeight=100,maxHeight=canvas.height-150; 
     
@@ -1706,7 +2020,6 @@ function generateLevel(level){
     
     const isBossLevel = level % 5 === 0;
     
-    // КЛЮЧ-КАРТОЧКИ (только уровни 1-5, вместо обычных ключей)
     if(level <= 5) {
         const cardPlat = platforms[Math.floor(Math.random() * (platforms.length - 3)) + 2];
         if(cardPlat) {
@@ -1751,7 +2064,6 @@ function generateLevel(level){
     } 
     for(let i=0;i<flyingEnemyCount;i++)flyingEnemies.push(new FlyingEnemy(300+Math.random()*(levelWidth-600),100+Math.random()*200)); 
     
-    // Спавн вихрей
     let vortexEnemyCount = 0;
     if (!isBossLevel) {
         if (level <= 5) vortexEnemyCount = 1;
@@ -1768,6 +2080,21 @@ function generateLevel(level){
         const p = platforms[pi];
         if (p) {
             vortexEnemies.push(new VortexEnemy(p.x + p.width / 2 - 27.5, p.y - 60));
+        }
+    }
+    
+    let dumplingCount = 0;
+    if (!isBossLevel && level >= 3) {
+        if (level <= 5) dumplingCount = 1;
+        else if (level <= 10) dumplingCount = Math.random() < 0.6 ? 1 : 2;
+        else dumplingCount = Math.random() < 0.4 ? 2 : 3;
+    }
+    
+    for (let i = 0; i < dumplingCount; i++) {
+        const pi = Math.floor(Math.random() * (platforms.length - 5)) + 2;
+        const p = platforms[pi];
+        if (p) {
+            dumplingEnemies.push(new DumplingEnemy(p.x + p.width / 2 - 30, p.y - 65, 1));
         }
     }
     
@@ -1902,7 +2229,6 @@ function equipAura(id) {
     }
 }
 
-// Кейсы
 function openChest() {
     if (totalKeys < 10) { alert('Нужно минимум 10 ключей!'); return; }
     totalKeys -= 10; saveAllData(); 
@@ -2091,7 +2417,6 @@ function showResult(title, text, col) {
 
 function hideResult() { const r = document.getElementById('chestResult'); if(r) r.style.display = 'none'; }
 
-// Магазин классов
 function openClassShop() {
     gameRunning = false;
     if (gameLoopId) cancelAnimationFrame(gameLoopId);
@@ -2220,8 +2545,10 @@ function gameLoop(){
     updateKeys();
     updatePowerUps();
     updateArrows();
+    updateDumplingProjectiles();
     decayCombo();
     checkEnemyCollisions();
+    checkDumplingCollisions();
     checkCheckpoints();
     if(boss) boss.update();
     for(let i=0; i<enemies.length; i++) {
@@ -2235,6 +2562,10 @@ function gameLoop(){
     for(let i=0; i<vortexEnemies.length; i++) {
         vortexEnemies[i].update();
         if(!vortexEnemies[i].active) { vortexEnemies.splice(i,1); i--; }
+    }
+    for(let i=0; i<dumplingEnemies.length; i++) {
+        dumplingEnemies[i].update();
+        if(!dumplingEnemies[i].active) { dumplingEnemies.splice(i,1); i--; }
     }
     if(player.x>levelWidth-100 && (!boss || !boss.active)){
         completeLevel();
@@ -2250,11 +2581,13 @@ function gameLoop(){
     for(let e of enemies) e.draw(ctx);
     for(let e of flyingEnemies) e.draw(ctx);
     for(let e of vortexEnemies) e.draw(ctx);
+    for(let e of dumplingEnemies) e.draw(ctx);
     if(boss) boss.draw(ctx);
     drawKeys();
     drawCoins();
     drawPowerUps();
     drawArrows();
+    drawDumplingProjectiles();
     drawParticles();
     player.draw(ctx,cameraX);
     drawGoal();
@@ -2345,6 +2678,8 @@ function restartGame(){
     if(craftDiv) craftDiv.style.display='none';
     currentLevel=1;score=0;playerHealth=maxHealth;comboCount=1;maxCombo=1;comboMultiplier=1;lastCheckpointX=0;bossesDefeated=0;
     roundCoins=0;roundDamage=0;
+    dumplingEnemies=[];
+    dumplingProjectiles=[];
     generateLevel(currentLevel);
     player = new Player();
     applyClassStats();
@@ -2794,7 +3129,6 @@ async function initGame(){
         currentClass = 'default';
     }
     
-    // Загружаем и применяем моды
     installedMods = JSON.parse(localStorage.getItem('kolblocks_mods')) || [];
     for (const mod of installedMods) {
         if (mod.enabled) {
