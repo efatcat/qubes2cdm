@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Qubes | Биомы | Моды | Трейлы</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="loading">
+        <div class="spinner"></div>
+        <div>Загрузка Qubes</div>
+        <div class="progress"><div class="progress-fill" id="progressFill"></div></div>
+    </div>
+
+    <div id="title">QUBES</div>
+    <div id="eloDisplay">🏆 ELO: <span id="eloValue">0</span></div>
+
+    <div id="ui">
+        <div class="stat"><span class="stat-label">Уровень:</span><span class="stat-value" id="levelDisplay">1</span></div>
+        <div class="stat"><span class="stat-label">Очки:</span><span class="stat-value" id="scoreDisplay">0</span></div>
+        <div class="stat"><span class="stat-label">Комбо:</span><span class="stat-value" id="comboCount">x1</span></div>
+        <div class="stat"><span class="stat-label">Здоровье:</span></div>
+        <div id="healthBar"><div id="healthFill"></div></div>
+        <div class="stat"><span class="stat-label">Класс:</span><span class="stat-value" id="classDisplay">Стандарт</span></div>
+        <div class="stat"><span class="stat-label">🎫 Карточки:</span><span class="stat-value" id="cardCountDisplay">0</span></div>
+    </div>
+
+    <div id="bossHealthBar"><div id="bossHealthFill"></div></div>
+    <div id="comboDisplay">COMBO x<span id="comboValue">1</span></div>
+    <div id="dashIndicator"><div class="dash-dot active"></div><div class="dash-dot"></div></div>
+    <div id="checkpointIndicator">✓ Чекпоинт сохранён!</div>
+
+    <div id="levelComplete">
+        <h2>🎉 УРОВЕНЬ ПРОЙДЕН!</h2>
+        <p>Счёт уровня: <span id="levelScore" style="color:#4af626;font-weight:bold">0</span></p>
+        <p>Комбо максимум: <span id="maxCombo" style="color:#FFDE7D;font-weight:bold">x1</span></p>
+        <p>🪙 Собрано монет: <span id="coinsCollected" style="color:#FFDE7D;font-weight:bold">0</span></p>
+        <p>💥 Получено урона: <span id="damageTaken" style="color:#ff2e63;font-weight:bold">0</span></p>
+        <p style="margin-top:10px;color:#FFDE7D;font-size:18px">Изменение ELO: <span id="eloChangeDisplay" style="font-weight:bold">+0</span></p>
+        <p style="margin-top:15px;color:#888">Следующий уровень...</p>
+    </div>
+
+    <div id="bossWarning"><h2>⚠️ БОСС!</h2><p style="font-size:24px;color:#fff">Приготовьтесь к битве!</p></div>
+
+    <div id="gameOver">
+        <h2>💀 ИГРА ОКОНЧЕНА</h2>
+        <p>Итоговый счёт: <span id="finalScore" style="color:#4af626;font-size:28px;font-weight:bold">0</span></p>
+        <p>Пройдено уровней: <span id="finalLevel">1</span></p>
+        <p>Макс. комбо: <span id="finalCombo" style="color:#FFDE7D">x1</span></p>
+        <p>Побеждено боссов: <span id="bossesDefeated" style="color:#ff0000">0</span></p>
+        <p style="margin-top:10px;color:#FFDE7D">Финальный ELO: <span id="finalElo" style="font-weight:bold;font-size:20px">0</span></p>
+        <div style="margin-top:10px">
+            <button onclick="restartGame()">🔄 ИГРАТЬ СНОВА</button>
+            <button class="secondary" onclick="showPauseMenu()">⚙️ НАСТРОЙКИ</button>
+        </div>
+    </div>
+
+    <div id="pauseMenu">
+        <div class="pause-content">
+            <h2>⏸ ПАУЗА</h2>
+            <div class="controls-info">
+                <span>← → / A D</span> Движение игрока<br>
+                <span>SPACE / W / ↑</span> Прыжок (двойной/тройной!)<br>
+                <span class="highlight">ЛКМ / V</span> Ближний бой (удар по площади) 💥<br>
+                <span>SHIFT / Q</span> Рывок (2 заряда) ⚡<br>
+                <span class="highlight">F / C</span> Выстрел (для лучника) 🏹<br>
+                <span>P / ESC</span> Пауза игры ⏸<br>
+                <span>R</span> Быстрый рестарт 🔄
+            </div>
+            <div style="margin:15px 0">
+                <label style="color:#ccc;margin-right:15px"><input type="checkbox" id="soundToggle" checked> 🔊 Звук</label>
+                <label style="color:#ccc"><input type="checkbox" id="particlesToggle" checked> ✨ Частицы</label>
+            </div>
+            <div class="pause-buttons">
+                <button onclick="togglePause()">▶ ПРОДОЛЖИТЬ</button>
+                <button onclick="openShop()">🎁 МАГАЗИН</button>
+                <button onclick="openClassShop()">⚔️ КЛАССЫ</button>
+                <button onclick="openCardCraft()">🎫 КРАФТ</button>
+                <button onclick="openPromoCode()">🎟️ ПРОМОКОД</button>
+                <button onclick="openProfile()">👤 ПРОФИЛЬ</button>
+                <button onclick="openModsMenu()">🎮 МОДЫ</button>
+                <button class="secondary" onclick="restartGame()">🔄 ЗАНОВО</button>
+                <button class="secondary" onclick="location.reload()">🏠 В МЕНЮ</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- МАГАЗИН КЕЙСОВ (с вкладками) -->
+    <div id="caseShopScreen">
+        <div class="shop-content">
+            <h2>🎁 МАГАЗИН</h2>
+            <div class="shop-header">
+                <span class="key-icon">🔑 Ключи: <span id="shopKeyCount">0</span></span>
+                <span class="key-icon">🎫 Карточки: <span id="shopCardCount">0</span></span>
+            </div>
+            
+            <!-- Вкладки -->
+            <div class="shop-tabs">
+                <button class="shop-tab active" data-tab="chests" onclick="switchShopTab('chests')">📦 КЕЙСЫ</button>
+                <button class="shop-tab" data-tab="trails" onclick="switchShopTab('trails')">💫 ТРЕЙЛЫ</button>
+                <button class="shop-tab" data-tab="paidSkins" onclick="switchShopTab('paidSkins')">🛍️ СКИНЫ</button>
+            </div>
+            
+            <!-- Вкладка: Кейсы -->
+            <div id="tab-chests" class="shop-tab-content active">
+                <div class="chests-container">
+                    <div class="chest-card">
+                        <div id="chestVisual" class="chest normal-chest">📦</div>
+                        <p class="chest-cost">Цена: 10 🔑</p>
+                        <button id="openChestBtn" onclick="openChest()">ОТКРЫТЬ</button>
+                    </div>
+                    
+                    <div class="chest-card">
+                        <div id="auraChestVisual" class="chest aura-chest">✨</div>
+                        <p class="chest-cost">Цена: 12 🔑</p>
+                        <button id="openAuraChestBtn" onclick="openAuraChest()">ОТКРЫТЬ</button>
+                    </div>
+
+                    <div class="chest-card">
+                        <div id="springChestVisual" class="chest spring-chest">🌸</div>
+                        <p class="chest-cost">Цена: 14 🔑</p>
+                        <button id="openSpringChestBtn" onclick="openSpringChest()">ВЕСЕННИЙ</button>
+                    </div>
+
+                    <div class="chest-card">
+                        <div id="eliteChestVisual" class="chest elite-chest">💀</div>
+                        <p class="chest-cost">Цена: 15 🔑</p>
+                        <button id="openEliteChestBtn" onclick="openEliteChest()">ELITE</button>
+                    </div>
+
+                    <div class="chest-card" id="trailChestCard">
+                        <div id="trailChestVisual" class="chest trail-chest">💫</div>
+                        <p class="chest-cost">Цена: 20 🔑</p>
+                        <button id="openTrailChestBtn" onclick="openTrailChest()">ТРЕЙЛЫ</button>
+                        <p class="chest-timer" id="trailChestTimer"></p>
+                    </div>
+                </div>
+                
+                <h3 style="color:#ccc; margin: 25px 0 15px;">Ваши скины:</h3>
+                <div id="skinsGrid" class="skins-grid"></div>
+                
+                <h3 style="color:#ccc; margin: 25px 0 15px;">Ваши ауры:</h3>
+                <div id="aurasGrid" class="skins-grid"></div>
+            </div>
+            
+            <!-- Вкладка: Трейлы -->
+            <div id="tab-trails" class="shop-tab-content">
+                <div class="shop-header" style="margin-top:15px">
+                    <span class="class-icon">💫 Трейл: <span id="currentTrailDisplay">Нет</span></span>
+                </div>
+                <p style="color:#aaa;margin-bottom:15px">Трейлы — следы, которые оставляет игрок</p>
+                
+                <h3 style="color:#ccc; margin: 15px 0 10px;">Ваши трейлы:</h3>
+                <div id="trailsGrid" class="skins-grid"></div>
+
+                <h3 style="color:#ccc; margin: 25px 0 10px;" id="paidTrailsTitle">💎 Платные трейлы (до конца лета):</h3>
+                <div id="paidTrailsGrid" class="skins-grid"></div>
+                
+                <div style="margin-top:20px">
+                    <button class="secondary" onclick="unequipTrail()" id="unequipTrailBtn" style="display:none">❌ СНЯТЬ ТРЕЙЛ</button>
+                </div>
+            </div>
+            
+            <!-- Вкладка: Платные скины -->
+            <div id="tab-paidSkins" class="shop-tab-content">
+                <div class="shop-header" style="margin-top:15px">
+                    <span class="key-icon">🔑 Ключи: <span id="skinShopKeyCount">0</span></span>
+                </div>
+                
+                <h3 style="color:#ccc; margin: 15px 0 10px;">💎 Платные скины:</h3>
+                <div id="paidSkinsGrid" class="skins-grid" style="max-width:600px"></div>
+
+                <h3 style="color:#ccc; margin: 25px 0 10px;">🌀 Аксессуары:</h3>
+                <div id="accessoriesGrid" class="skins-grid"></div>
+                
+                <div style="margin-top:20px">
+                    <button class="secondary" onclick="unequipAccessory()" id="unequipAccessoryBtn" style="display:none">❌ СНЯТЬ АКСЕССУАР</button>
+                </div>
+            </div>
+            
+            <button class="secondary" onclick="closeShop()" style="margin-top:30px">✖ ЗАКРЫТЬ</button>
+        </div>
+        <div id="chestResult"><h3 id="resultTitle">Предмет получен!</h3><p id="resultText"></p><button onclick="hideResult()">ОК</button></div>
+    </div>
+
+    <!-- МАГАЗИН КЛАССОВ -->
+    <div id="classShopScreen">
+        <div class="shop-content">
+            <h2>⚔️ МАГАЗИН КЛАССОВ</h2>
+            <div class="shop-header">
+                <span class="key-icon">🔑 Ключи: <span id="classShopKeyCount">0</span></span>
+                <span class="class-icon">⚔️ Класс: <span id="currentClassDisplay">Стандарт</span></span>
+            </div>
+            <div id="classSwitchWarning" class="class-warning" style="display:none">
+                ⚠️ Смена класса доступна только на 1 уровне или после смерти!
+            </div>
+            
+            <div class="classes-container">
+                <div class="class-card default">
+                    <div class="class-icon-large">⭐</div>
+                    <h3>СТАНДАРТ</h3>
+                    <p>⚖️ Сбалансированный класс</p>
+                    <p>💰 Бесплатно!</p>
+                    <button onclick="selectClass('default')" id="selectDefaultBtn" class="class-select-btn">ВКЛ</button>
+                </div>
+                
+                <div class="class-card warrior">
+                    <div class="class-icon-large">🛡️</div>
+                    <h3>ВОИН</h3>
+                    <p>❤️ Больше здоровья (150)</p>
+                    <p>💥 Урон x1.5</p>
+                    <p>💰 Цена: 200 🔑</p>
+                    <button onclick="buyClass('warrior')" id="buyWarriorBtn">КУПИТЬ</button>
+                </div>
+                
+                <div class="class-card archer">
+                    <div class="class-icon-large">🏹</div>
+                    <h3>ЛУЧНИК</h3>
+                    <p>🎯 Подходит для новичков!</p>
+                    <p>🏹 Быстрые стрелы (0.1с)</p>
+                    <p>💰 Цена: 55 🔑</p>
+                    <button onclick="buyClass('archer')" id="buyArcherBtn">КУПИТЬ</button>
+                </div>
+                
+                <div class="class-card mage">
+                    <div class="class-icon-large">🔮</div>
+                    <h3>МАГ</h3>
+                    <p>🍃 Медленное падение</p>
+                    <p>🌀 Радиус атаки 117</p>
+                    <p>💰 Цена: 150 🔑</p>
+                    <button onclick="buyClass('mage')" id="buyMageBtn">КУПИТЬ</button>
+                </div>
+                
+                <div class="class-card rogue">
+                    <div class="class-icon-large">🗡️</div>
+                    <h3>РАЗБОЙНИК</h3>
+                    <p>⚡ Быстрее стандарта (7.2)</p>
+                    <p>🦅 Тройной прыжок</p>
+                    <p>💔 Меньше здоровья (70)</p>
+                    <p>💰 Цена: 100 🔑</p>
+                    <button onclick="buyClass('rogue')" id="buyRogueBtn">КУПИТЬ</button>
+                </div>
+            </div>
+            
+            <button class="secondary" onclick="closeClassShop()" style="margin-top:30px">✖ ЗАКРЫТЬ</button>
+        </div>
+    </div>
+
+    <!-- КРАФТ КАРТОЧЕК -->
+    <div id="cardCraftScreen">
+        <div class="shop-content">
+            <h2>🎫 КРАФТ КЛЮЧ-КАРТОЧЕК</h2>
+            <div class="shop-header">
+                <span class="key-icon">🎫 Карточки: <span id="craftCardCount">0</span></span>
+                <span class="key-icon">🔑 Ключи: <span id="craftKeyCount">0</span></span>
+            </div>
+            
+            <div class="craft-container">
+                <div class="craft-card">
+                    <div class="craft-icon">🎫🎫🎫</div>
+                    <h3>3 карточки → 1 ключ</h3>
+                    <p>Обменяйте 3 ключ-карточки на 1 обычный ключ</p>
+                    <button onclick="craftKeys()" id="craftBtn">ОБМЕНЯТЬ</button>
+                </div>
+            </div>
+            
+            <button class="secondary" onclick="closeCardCraft()" style="margin-top:30px">✖ ЗАКРЫТЬ</button>
+        </div>
+    </div>
+
+    <!-- ПРОМОКОД -->
+    <div id="promoCodeScreen">
+        <div class="shop-content" style="max-width:450px">
+            <h2>🎟️ ПРОМОКОД</h2>
+            <p style="color:#aaa;margin:15px 0">Введите промокод для получения бонусов:</p>
+            <input type="text" id="promoInput" class="promo-input" placeholder="ВВЕДИТЕ КОД...">
+            <div class="promo-buttons">
+                <button onclick="applyPromoCode()">✅ ПРИМЕНИТЬ</button>
+                <button class="secondary" onclick="closePromoCode()">✖ ЗАКРЫТЬ</button>
+            </div>
+            <p id="promoMessage" class="promo-message"></p>
+            <div style="margin-top:20px;padding:15px;background:rgba(255,255,255,0.05);border-radius:10px">
+                <p style="color:#888;font-size:12px;margin:0">
+                    💡 Подсказка: промокоды можно найти в сообществе игры. Некоторые действуют только ограниченное время!
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ПРОФИЛЬ -->
+    <div id="profileScreen">
+        <div class="shop-content profile-content">
+            <h2>👤 ПРОФИЛЬ</h2>
+            
+            <div class="profile-nickname">
+                <label style="color:#aaa">Никнейм:</label>
+                <input type="text" id="nicknameInput" class="promo-input" placeholder="Ваш никнейм..." maxlength="20">
+                <button onclick="saveNickname()" style="padding:8px 15px;font-size:14px">💾 СОХРАНИТЬ</button>
+            </div>
+
+            <div class="profile-stats">
+                <div class="profile-stat-row">
+                    <span>🔑 Ключей:</span>
+                    <span id="profileKeys" style="color:#FFDE7D;font-weight:bold">0</span>
+                </div>
+                <div class="profile-stat-row">
+                    <span>🏆 ELO:</span>
+                    <span id="profileElo" style="color:#4af626;font-weight:bold">0</span>
+                </div>
+                <div class="profile-stat-row">
+                    <span>⚔️ Класс:</span>
+                    <span id="profileClass">Стандарт</span>
+                </div>
+                <div class="profile-stat-row">
+                    <span>🎨 Скин:</span>
+                    <span id="profileSkin">Стандарт</span>
+                </div>
+                <div class="profile-stat-row">
+                    <span>✨ Аура:</span>
+                    <span id="profileAura">Нет</span>
+                </div>
+                <div class="profile-stat-row">
+                    <span>💫 Трейл:</span>
+                    <span id="profileTrail">Нет</span>
+                </div>
+            </div>
+
+            <h3 style="color:#ccc;margin:20px 0 10px">📦 Коллекция:</h3>
+            <div class="profile-collections">
+                <div>
+                    <h4>Скины (<span id="profileSkinCount">0</span>)</h4>
+                    <div id="profileSkinsPreview" class="profile-preview"></div>
+                </div>
+                <div>
+                    <h4>Ауры (<span id="profileAuraCount">0</span>)</h4>
+                    <div id="profileAurasPreview" class="profile-preview"></div>
+                </div>
+                <div>
+                    <h4>Трейлы (<span id="profileTrailCount">0</span>)</h4>
+                    <div id="profileTrailsPreview" class="profile-preview"></div>
+                </div>
+            </div>
+            
+            <button class="secondary" onclick="closeProfile()" style="margin-top:20px">✖ ЗАКРЫТЬ</button>
+        </div>
+    </div>
+
+    <!-- МОДЫ -->
+    <div id="modsMenuScreen">
+        <div class="shop-content">
+            <h2>🎮 МОДЫ</h2>
+            <div class="shop-header">
+                <span class="class-icon">📦 Установлено: <span id="modsCount">0</span></span>
+            </div>
+            
+            <div style="margin: 15px 0;">
+                <button onclick="installMod()" style="background: linear-gradient(135deg, #FF6B6B, #FF4444);">📥 УСТАНОВИТЬ МОД (.qbm)</button>
+            </div>
+            
+            <div id="modsList" class="mods-list">
+                <div style="color:#888; text-align:center; padding:20px;">Нет установленных модов</div>
+            </div>
+            
+            <button class="secondary" onclick="closeModsMenu()" style="margin-top:30px">✖ ЗАКРЫТЬ</button>
+        </div>
+    </div>
+
+    <div id="mobileControls">
+        <div class="mobile-group">
+            <button class="mobile-btn" id="btnLeft">←</button>
+            <button class="mobile-btn" id="btnRight">→</button>
+        </div>
+        <div class="mobile-group">
+            <button class="mobile-btn dash" id="btnDash">⇨</button>
+            <button class="mobile-btn attack" id="btnAttack">⚔️</button>
+            <button class="mobile-btn jump" id="btnJump">↑</button>
+            <button class="mobile-btn shoot" id="btnShoot" style="display:none">🏹</button>
+        </div>
+    </div>
+
+    <div id="arrowIndicator" style="display:none">🏹 СТРЕЛЫ: ГОТОВО</div>
+    <div id="biomPreload" style="display:none"></div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script src="game.js"></script>
+</body>
+</html>
