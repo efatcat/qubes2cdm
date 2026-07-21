@@ -1,4 +1,4 @@
-// game.js - QUBES v2.4 - FIXES & IMPROVEMENTS
+// game.js - QUBES v2.5 - AURA IMAGES FIXED
 
 const CONFIG = {
     player: { width: 40, height: 40, speed: 6, jumpPower: 16, gravity: 0.8, friction: 0.85, dashSpeed: 20, dashDuration: 12, dashCooldown: 45, maxDashes: 2, doubleJump: true },
@@ -97,13 +97,12 @@ const ACCESSORIES = [
     { id: 'vortex_eyes', name: 'Глаза Вихря', description: 'Заменяет глаза на глаза врага Вихря' }
 ];
 
-// ==================== ВОЗВРАТ ИСХОДНЫХ СКОРОСТЕЙ (v2.4) ====================
 const CLASSES = {
     default: { name: 'Стандарт', maxHealth: 100, damage: 1, speed: 6, jumpCount: 2, gravity: 0.8, meleeRadius: 95, color: '#4af626', price: 0 },
     warrior: { name: 'Воин', maxHealth: 150, damage: 1.5, speed: 5.5, jumpCount: 2, gravity: 0.85, meleeRadius: 95, color: '#ff4444', price: 200 },
     archer: { name: 'Лучник', maxHealth: 100, damage: 1, speed: 6, jumpCount: 2, gravity: 0.8, meleeRadius: 95, color: '#44ff44', price: 55, description: 'Идеален для новичков!', hasArrows: true, arrowCooldown: 6, arrowDamage: 1.5 },
     mage: { name: 'Маг', maxHealth: 100, damage: 1, speed: 5, jumpCount: 2, gravity: 0.75, meleeRadius: 117, color: '#4444ff', price: 150 },
-    rogue: { name: 'Разбойник', maxHealth: 70, damage: 1, speed: 8, jumpCount: 3, gravity: 0.8, meleeRadius: 95, color: '#aa44ff', price: 100 }  // ← СКОРОСТЬ 8 (вернул)
+    rogue: { name: 'Разбойник', maxHealth: 70, damage: 1, speed: 8, jumpCount: 3, gravity: 0.8, meleeRadius: 95, color: '#aa44ff', price: 100 }
 };
 
 const PROMO_CODES = {
@@ -139,9 +138,12 @@ let roundCoins = 0, roundDamage = 0;
 let lastKaleidoscopeColor = null;
 let lastKaleidoscopeDate = null;
 
+// ==================== КАРТИНКИ ДЛЯ АУР (v2.5) ====================
 let batidaoImage = null;
 let cucumberImage = null;
 let explosionGif = null;
+let auraImagesLoaded = false;
+
 let activeAuraEffect = null;
 let gameLoopId = null;
 let activeTimeouts = [];
@@ -624,7 +626,6 @@ class Player {
         this.lastCheckpoint = { x: 100, y: 200 };
         this.meleeCooldown = 0;
         this.swingEffect = 0;
-        // Кэш для глаз Вихря (оптимизация)
         this.vortexCache = { target: null, frame: 0 };
         return this;
     }
@@ -988,7 +989,7 @@ class Player {
         
         const mainColor = skin.color;
         
-        // ==================== КЕКС (БЕЗ РТА) ====================
+        // ==================== КЕКС (БЕЗ РТА - v2.5) ====================
         if (skin.shape === 'cupcake') {
             // Основа кекса (коричневая часть)
             ctx.fillStyle = '#8B4513';
@@ -1019,7 +1020,7 @@ class Player {
             ctx.fillRect(x + 20, y + h * 0.4, 3, 3);
             ctx.fillRect(x + 30, y + h * 0.35, 3, 3);
             
-            // Глаза (без рта!)
+            // Только глаза, БЕЗ РТА
             this.drawEyes(ctx, x, y + h * 0.5, w, h * 0.5, '#222');
             return;
         }
@@ -1166,10 +1167,8 @@ class Player {
         ctx.fillRect(x + 10, y + 25, 20, 4);
     }
     
-    // ==================== ОПТИМИЗИРОВАННЫЕ ГЛАЗА ВИХРЯ ====================
     drawEyes(ctx, x, y, w, h, color) {
         if (equippedAccessory === 'vortex_eyes') {
-            // Обновляем кэш раз в 4 кадра (вместо каждого кадра)
             this.vortexCache.frame++;
             if (this.vortexCache.frame >= 4) {
                 this.vortexCache.frame = 0;
@@ -1177,14 +1176,13 @@ class Player {
                 let targetX = this.x + w/2, targetY = this.y + h/2;
                 let minDist = Infinity;
                 
-                // Быстрый поиск ближайшего врага
                 const allEnemies = enemies;
                 for (let i = 0; i < allEnemies.length; i++) {
                     const e = allEnemies[i];
                     if (!e.active) continue;
                     const dx = e.x - this.x;
                     const dy = e.y - this.y;
-                    const dist = dx * dx + dy * dy; // Квадрат расстояния быстрее
+                    const dist = dx * dx + dy * dy;
                     if (dist < minDist) {
                         minDist = dist;
                         targetX = e.x + e.width/2;
@@ -1238,28 +1236,24 @@ class Player {
             const lookX = Math.max(-maxOffset, Math.min(maxOffset, dx / 50));
             const lookY = Math.max(-maxOffset, Math.min(maxOffset, dy / 50));
             
-            // Белки глаз
             ctx.fillStyle = '#fff';
             ctx.beginPath();
             ctx.ellipse(x + 12, y + 14, 7, 8, 0, 0, Math.PI * 2);
             ctx.ellipse(x + 28, y + 14, 7, 8, 0, 0, Math.PI * 2);
             ctx.fill();
             
-            // Зрачки
             ctx.fillStyle = '#000';
             ctx.beginPath();
             ctx.arc(x + 12 + lookX, y + 14 + lookY, 4, 0, Math.PI * 2);
             ctx.arc(x + 28 + lookX, y + 14 + lookY, 4, 0, Math.PI * 2);
             ctx.fill();
             
-            // Блик
             ctx.fillStyle = '#fff';
             ctx.beginPath();
             ctx.arc(x + 10 + lookX * 0.5, y + 11 + lookY * 0.5, 1.5, 0, Math.PI * 2);
             ctx.arc(x + 26 + lookX * 0.5, y + 11 + lookY * 0.5, 1.5, 0, Math.PI * 2);
             ctx.fill();
             
-            // Свечение (убираем shadowBlur для оптимизации)
             ctx.strokeStyle = 'rgba(0, 204, 255, 0.6)';
             ctx.lineWidth = 1.5;
             ctx.beginPath();
@@ -1315,7 +1309,6 @@ class Player {
         }
     }
     
-    // ==================== УЛУЧШЕННЫЕ ТРЕЙЛЫ (v2.4) ====================
     drawTrail(ctx, cameraX) {
         if (!equippedTrail || this.trailPoints.length === 0) return;
         
@@ -1411,12 +1404,11 @@ class Player {
                     ctx.shadowBlur = 0;
                     break;
                     
-                // ==================== УВЕЛИЧЕННЫЕ НОТЫ ====================
                 case 'music':
                     ctx.fillStyle = '#ffffff';
                     ctx.shadowColor = '#ffffff';
                     ctx.shadowBlur = 10;
-                    const fontSize = 28 * lifeRatio; // Было 16
+                    const fontSize = 28 * lifeRatio;
                     ctx.font = `bold ${fontSize}px Arial`;
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
@@ -1471,11 +1463,9 @@ class Player {
                     ctx.shadowBlur = 0;
                     break;
                     
-                // ==================== КРУТЫЕ ИСКРЫ (v2.4) ====================
                 case 'sparks':
-                    // Множество искр с разными цветами и размерами
                     const sparkColors = ['#ff6600', '#ffaa00', '#ff3300', '#ffff00', '#ff8800'];
-                    const sparkCount = 6; // Было 4
+                    const sparkCount = 6;
                     
                     for (let j = 0; j < sparkCount; j++) {
                         const sparkColor = sparkColors[j % sparkColors.length];
@@ -1484,30 +1474,24 @@ class Player {
                         const wobble = Math.sin(time * 10 + j + i) * 3;
                         const r = baseR + wobble;
                         
-                        // Позиция искры
                         const sx = drawX + Math.cos(angle) * r;
                         const sy = drawY + Math.sin(angle) * r * 0.5 - (1 - lifeRatio) * 12;
                         
-                        // Размер искры (пульсирующий)
                         const sparkSize = (2 + Math.sin(time * 15 + j) * 1) * lifeRatio;
                         
-                        // Свечение
                         ctx.shadowColor = sparkColor;
                         ctx.shadowBlur = 15 * lifeRatio;
                         
-                        // Ядро искры (яркое)
                         ctx.fillStyle = '#ffffff';
                         ctx.beginPath();
                         ctx.arc(sx, sy, sparkSize * 0.5, 0, Math.PI * 2);
                         ctx.fill();
                         
-                        // Внешняя часть (цветная)
                         ctx.fillStyle = sparkColor;
                         ctx.beginPath();
                         ctx.arc(sx, sy, sparkSize, 0, Math.PI * 2);
                         ctx.fill();
                         
-                        // Хвост искры (линия)
                         ctx.strokeStyle = sparkColor;
                         ctx.lineWidth = 1.5 * lifeRatio;
                         ctx.globalAlpha = lifeRatio * 0.6;
@@ -1520,78 +1504,30 @@ class Player {
                     ctx.shadowBlur = 0;
                     break;
                     
-                // ==================== УВЕЛИЧЕННЫЙ КОТИК ====================
                 case 'cat':
-                    const catSize = 32 * lifeRatio; // Было 16
+                    const catSize = 32 * lifeRatio;
                     ctx.font = `${catSize}px Arial`;
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
-                    // Лёгкое покачивание
                     const catWobble = Math.sin(time * 5 + i * 0.5) * 3;
                     ctx.fillText('😸', drawX + catWobble, drawY);
                     break;
                     
-                // ==================== ЭПИЧНЫЙ ДЕНЬ РОЖДЕНИЯ (v2.4) ====================
+                // ==================== ДЕНЬ РОЖДЕНИЯ (УПРОЩЁННЫЙ - v2.5) ====================
                 case 'birthday':
-                    // Множество эффектов для эпичности
-                    
-                    // 1. Вращающийся радужный круг
-                    const bdRadius = 18 * lifeRatio;
-                    const bdGradient = ctx.createRadialGradient(drawX, drawY, 0, drawX, drawY, bdRadius);
-                    const hue = (time * 200 + i * 30) % 360;
-                    bdGradient.addColorStop(0, `hsla(${hue}, 100%, 70%, ${lifeRatio})`);
-                    bdGradient.addColorStop(0.5, `hsla(${(hue + 60) % 360}, 100%, 60%, ${lifeRatio * 0.7})`);
-                    bdGradient.addColorStop(1, `hsla(${(hue + 120) % 360}, 100%, 50%, 0)`);
-                    ctx.fillStyle = bdGradient;
-                    ctx.beginPath();
-                    ctx.arc(drawX, drawY, bdRadius, 0, Math.PI * 2);
-                    ctx.fill();
-                    
-                    // 2. Конфетти (8 штук разных цветов)
-                    const confettiColors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff', '#ff8800', '#8800ff'];
-                    for (let c = 0; c < 8; c++) {
-                        const cAngle = (c / 8) * Math.PI * 2 + time * 2 + i * 0.2;
-                        const cRadius = 12 * lifeRatio + Math.sin(time * 8 + c) * 3;
-                        const cx = drawX + Math.cos(cAngle) * cRadius;
-                        const cy = drawY + Math.sin(cAngle) * cRadius;
-                        
-                        ctx.fillStyle = confettiColors[c];
-                        ctx.shadowColor = confettiColors[c];
-                        ctx.shadowBlur = 8;
-                        
-                        // Вращающийся прямоугольник
-                        ctx.save();
-                        ctx.translate(cx, cy);
-                        ctx.rotate(time * 5 + c + i);
-                        ctx.fillRect(-2, -2, 4 * lifeRatio, 4 * lifeRatio);
-                        ctx.restore();
-                    }
-                    ctx.shadowBlur = 0;
-                    
-                    // 3. Большой эмодзи в центре (вращается)
+                    // Только большой эмодзи, без конфетти/кругов/блёсток
                     const bdEmojis = ['🎂', '🎉', '🎁', '🎈', '🎊', '🥳', '🍰', '🎀'];
                     const bdEmoji = bdEmojis[Math.floor(i / 2) % bdEmojis.length];
-                    const bdSize = 36 * lifeRatio; // Было 16, теперь 36 (в 2.25 раза больше)
+                    const bdSize = 36 * lifeRatio;
                     
                     ctx.save();
                     ctx.translate(drawX, drawY);
-                    ctx.rotate(Math.sin(time * 3 + i) * 0.3); // Лёгкое покачивание
+                    ctx.rotate(Math.sin(time * 3 + i) * 0.3);
                     ctx.font = `bold ${bdSize}px Arial`;
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
                     ctx.fillText(bdEmoji, 0, 0);
                     ctx.restore();
-                    
-                    // 4. Блёстки вокруг
-                    ctx.fillStyle = '#ffffff';
-                    for (let s = 0; s < 4; s++) {
-                        const sAngle = (s / 4) * Math.PI * 2 + time * 4;
-                        const sRadius = 20 * lifeRatio;
-                        const sx = drawX + Math.cos(sAngle) * sRadius;
-                        const sy = drawY + Math.sin(sAngle) * sRadius;
-                        const sparkleSize = 2 * lifeRatio * (0.5 + Math.sin(time * 10 + s) * 0.5);
-                        ctx.fillRect(sx - sparkleSize/2, sy - sparkleSize/2, sparkleSize, sparkleSize);
-                    }
                     break;
                     
                 default:
@@ -2612,6 +2548,7 @@ function openAuraChest() {
             let message = '✨ Новая аура: ' + drop.name + '!';
             if(drop.id === 'batidao_aura') message = '🔥 НО БАТИДАО! ' + message;
             if(drop.id === 'explosion_aura') message = '💥 ВЗРЫВ ANIMATED! ' + message;
+            if(drop.id === 'cucumber_aura') message = '🥒 ОГУРЕЧНАЯ! ' + message;
             showResult(message, 'Теперь при ударе будет эффект!', drop.color);
         }
         if(btn) btn.disabled = false; 
@@ -2904,7 +2841,6 @@ function renderPaidSkins() {
     });
 }
 
-// ==================== УБРАНА ПОДСКАЗКА О ПРОМОКОДЕ ВИХРЬ22 (v2.4) ====================
 function renderAccessories() {
     const g = document.getElementById('accessoriesGrid');
     if (!g) return;
@@ -2934,8 +2870,6 @@ function renderAccessories() {
         g.appendChild(d);
     });
     
-    // УБРАНА ПОДСКАЗКА О ПРОМОКОДЕ ВИХРЬ22
-    // Если аксессуаров нет — просто показываем пустое состояние
     if (unlockedAccessories.length === 0) {
         g.innerHTML = '<div style="color:#aaa; text-align:center; grid-column:1/-1;">Нет доступных аксессуаров</div>';
     }
@@ -3284,36 +3218,147 @@ function buyClass(className) {
     }
 }
 
+// ==================== ЗАГРУЗКА КАРТИНОК ДЛЯ АУР (v2.5) ====================
 function loadAuraImages() {
-    const batidaoImg = new Image();
-    batidaoImg.onload = () => { batidaoImage = batidaoImg; };
-    batidaoImg.src = 'batidao.png';
-    const cucumberImg = new Image();
-    cucumberImg.onload = () => { cucumberImage = cucumberImg; };
-    cucumberImg.src = 'ogurec.webp';
-    const explosionImg = new Image();
-    explosionImg.onload = () => { explosionGif = explosionImg; };
-    explosionImg.src = 'vzryv.gif';
+    let loadedCount = 0;
+    const totalToLoad = 3;
+    
+    function checkAllLoaded() {
+        loadedCount++;
+        if (loadedCount >= totalToLoad) {
+            auraImagesLoaded = true;
+            console.log('✅ Все картинки аур загружены');
+        }
+    }
+    
+    // Огурец
+    cucumberImage = new Image();
+    cucumberImage.crossOrigin = 'anonymous';
+    cucumberImage.onload = () => {
+        console.log('✅ Огурец загружен:', cucumberImage.src);
+        checkAllLoaded();
+    };
+    cucumberImage.onerror = () => {
+        console.error('❌ Не удалось загрузить огурец');
+        cucumberImage = null;
+        checkAllLoaded();
+    };
+    cucumberImage.src = 'ogurec.webp';
+    
+    // Батидао
+    batidaoImage = new Image();
+    batidaoImage.crossOrigin = 'anonymous';
+    batidaoImage.onload = () => {
+        console.log('✅ Батидао загружен:', batidaoImage.src);
+        checkAllLoaded();
+    };
+    batidaoImage.onerror = () => {
+        console.error('❌ Не удалось загрузить батидао');
+        batidaoImage = null;
+        checkAllLoaded();
+    };
+    batidaoImage.src = 'batidao.png';
+    
+    // Взрыв GIF
+    explosionGif = new Image();
+    explosionGif.crossOrigin = 'anonymous';
+    explosionGif.onload = () => {
+        console.log('✅ Взрыв загружен:', explosionGif.src);
+        checkAllLoaded();
+    };
+    explosionGif.onerror = () => {
+        console.error('❌ Не удалось загрузить взрыв');
+        explosionGif = null;
+        checkAllLoaded();
+    };
+    explosionGif.src = 'vzryv.gif';
 }
 
+// ==================== ПОКАЗ АУРЫ С КАРТИНКОЙ (v2.5) ====================
 function showAuraEffectOnPlayer(x, y, aura) {
     if(activeAuraEffect) { activeAuraEffect.remove(); activeAuraEffect = null; }
+    
     const effect = document.createElement('div');
     effect.className = 'aura-effect player-aura';
     effect.style.position = 'fixed';
     effect.style.pointerEvents = 'none';
     effect.style.zIndex = '200';
-    effect.style.borderRadius = '50%';
-    effect.style.background = `radial-gradient(circle, ${aura.effectColor}, transparent)`;
-    effect.style.boxShadow = `0 0 40px ${aura.color}`;
-    effect.style.animation = 'auraExpandPlayer 0.4s ease-out forwards';
     effect.style.left = (x - 150) + 'px';
     effect.style.top = (y - 150) + 'px';
     effect.style.width = '300px';
     effect.style.height = '300px';
+    
+    // ==================== АУРЫ С КАРТИНКАМИ ====================
+    if (aura.id === 'cucumber_aura' && cucumberImage && cucumberImage.complete && cucumberImage.naturalWidth > 0) {
+        // Огуречная аура
+        effect.style.background = 'none';
+        effect.style.boxShadow = 'none';
+        effect.style.borderRadius = '0';
+        effect.style.overflow = 'visible';
+        
+        const img = document.createElement('img');
+        img.src = cucumberImage.src;
+        img.style.cssText = `
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            animation: cucumberAuraPlayer 0.8s ease-out forwards;
+            filter: drop-shadow(0 0 20px #7CFC00);
+        `;
+        effect.appendChild(img);
+    } 
+    else if (aura.id === 'batidao_aura' && batidaoImage && batidaoImage.complete && batidaoImage.naturalWidth > 0) {
+        // Но батидао
+        effect.style.background = 'none';
+        effect.style.boxShadow = 'none';
+        effect.style.borderRadius = '0';
+        effect.style.overflow = 'visible';
+        
+        const img = document.createElement('img');
+        img.src = batidaoImage.src;
+        img.style.cssText = `
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            animation: batidaoAuraPlayer 0.8s ease-out forwards;
+            filter: drop-shadow(0 0 20px #ff0000);
+        `;
+        effect.appendChild(img);
+    } 
+    else if (aura.id === 'explosion_aura' && explosionGif && explosionGif.complete && explosionGif.naturalWidth > 0) {
+        // Взрыв Animated
+        effect.style.background = 'none';
+        effect.style.boxShadow = 'none';
+        effect.style.borderRadius = '0';
+        effect.style.overflow = 'visible';
+        
+        const img = document.createElement('img');
+        img.src = explosionGif.src;
+        img.style.cssText = `
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            animation: explosionAuraPlayer 0.8s ease-out forwards;
+            filter: drop-shadow(0 0 20px #FF4500);
+        `;
+        effect.appendChild(img);
+    } 
+    else {
+        // Обычные ауры — градиент
+        effect.style.borderRadius = '50%';
+        effect.style.background = `radial-gradient(circle, ${aura.effectColor}, transparent)`;
+        effect.style.boxShadow = `0 0 40px ${aura.color}`;
+        effect.style.animation = 'auraExpandPlayer 0.4s ease-out forwards';
+    }
+    
     document.body.appendChild(effect);
     activeAuraEffect = effect;
-    safeTimeout(() => { if(activeAuraEffect) { activeAuraEffect.remove(); activeAuraEffect = null; } }, 500);
+    safeTimeout(() => { 
+        if(activeAuraEffect) { 
+            activeAuraEffect.remove(); 
+            activeAuraEffect = null; 
+        } 
+    }, 800);
 }
 
 function gameLoop(){
@@ -3914,14 +3959,12 @@ function showModMessage(text) {
     safeTimeout(() => msg.remove(), 3000);
 }
 
-// ==================== МОБИЛЬНОЕ ПРЕДУПРЕЖДЕНИЕ (v2.4) ====================
 function showMobileWarning() {
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
                      ('ontouchstart' in window && window.innerWidth <= 1024);
     
     if (!isMobile) return;
     
-    // Проверяем, показывали ли уже
     if (localStorage.getItem('kolblocks_mobile_warning_shown')) return;
     
     const overlay = document.createElement('div');
@@ -4039,7 +4082,6 @@ async function initGame(){
                     loading.style.opacity = '0';
                     safeTimeout(() => { 
                         if(loading) loading.style.display = 'none';
-                        // Показываем мобильное предупреждение после загрузки
                         showMobileWarning();
                     }, 500);
                 }
