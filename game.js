@@ -1,4 +1,4 @@
-// game.js - QUBES v2.5 - AURA IMAGES FIXED
+// game.js - QUBES v2.3 - AURA FOG EFFECT RESTORED
 
 const CONFIG = {
     player: { width: 40, height: 40, speed: 6, jumpPower: 16, gravity: 0.8, friction: 0.85, dashSpeed: 20, dashDuration: 12, dashCooldown: 45, maxDashes: 2, doubleJump: true },
@@ -138,7 +138,6 @@ let roundCoins = 0, roundDamage = 0;
 let lastKaleidoscopeColor = null;
 let lastKaleidoscopeDate = null;
 
-// ==================== КАРТИНКИ ДЛЯ АУР (v2.5) ====================
 let batidaoImage = null;
 let cucumberImage = null;
 let explosionGif = null;
@@ -989,9 +988,7 @@ class Player {
         
         const mainColor = skin.color;
         
-        // ==================== КЕКС (БЕЗ РТА - v2.5) ====================
         if (skin.shape === 'cupcake') {
-            // Основа кекса (коричневая часть)
             ctx.fillStyle = '#8B4513';
             ctx.beginPath();
             ctx.moveTo(x + 5, y + h);
@@ -1001,26 +998,22 @@ class Player {
             ctx.closePath();
             ctx.fill();
             
-            // Глазурь (розовая шапочка)
             ctx.fillStyle = mainColor;
             ctx.beginPath();
             ctx.arc(x + w/2, y + h * 0.5, w * 0.55, Math.PI, 0, false);
             ctx.closePath();
             ctx.fill();
             
-            // Вишенка на верху
             ctx.fillStyle = '#ff0000';
             ctx.beginPath();
             ctx.arc(x + w/2, y + 5, 5, 0, Math.PI * 2);
             ctx.fill();
             
-            // Посыпка (разноцветная)
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(x + 10, y + h * 0.35, 3, 3);
             ctx.fillRect(x + 20, y + h * 0.4, 3, 3);
             ctx.fillRect(x + 30, y + h * 0.35, 3, 3);
             
-            // Только глаза, БЕЗ РТА
             this.drawEyes(ctx, x, y + h * 0.5, w, h * 0.5, '#222');
             return;
         }
@@ -1513,9 +1506,7 @@ class Player {
                     ctx.fillText('😸', drawX + catWobble, drawY);
                     break;
                     
-                // ==================== ДЕНЬ РОЖДЕНИЯ (УПРОЩЁННЫЙ - v2.5) ====================
                 case 'birthday':
-                    // Только большой эмодзи, без конфетти/кругов/блёсток
                     const bdEmojis = ['🎂', '🎉', '🎁', '🎈', '🎊', '🥳', '🍰', '🎀'];
                     const bdEmoji = bdEmojis[Math.floor(i / 2) % bdEmojis.length];
                     const bdSize = 36 * lifeRatio;
@@ -2340,6 +2331,7 @@ function drawCoins(){for(const c of coins){ctx.fillStyle=c.color;ctx.beginPath()
 function drawKeys(){for(const k of levelKeys){if(k.collected)continue;k.floatOffset+=0.06;const ky=k.y+Math.sin(k.floatOffset)*6;ctx.font='26px Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.shadowColor=k.isCard?'#FFDE7D':'#00BFFF';ctx.shadowBlur=12;ctx.fillText(k.isCard?'🎫':'🔑',k.x+k.size/2-cameraX,ky+k.size/2);ctx.shadowBlur=0;}}
 function drawPowerUps(){for(const p of powerUps){ctx.fillStyle=p.color;ctx.beginPath();if(p.type==='health'){ctx.moveTo(p.x-cameraX,p.y+p.size/2);ctx.bezierCurveTo(p.x-cameraX,p.y,p.x-cameraX-p.size,p.y,p.x-cameraX-p.size,p.y+p.size/2);ctx.bezierCurveTo(p.x-cameraX-p.size,p.y+p.size,p.x-cameraX,p.y+p.size*1.5,p.x-cameraX,p.y+p.size*1.5);ctx.bezierCurveTo(p.x-cameraX,p.y+p.size*1.5,p.x-cameraX+p.size,p.y+p.size,p.x-cameraX+p.size,p.y+p.size/2);ctx.bezierCurveTo(p.x-cameraX+p.size,p.y,p.x-cameraX,p.y,p.x-cameraX,p.y+p.size/2);}else{ctx.arc(p.x-cameraX,p.y,p.size,0,Math.PI*2);}ctx.fill();ctx.shadowColor=p.color;ctx.shadowBlur=10;ctx.fill();ctx.shadowBlur=0;}}
 
+// ==================== МАГАЗИН ====================
 function openShop() {
     clearKeys();
     gameRunning = false;
@@ -3218,7 +3210,7 @@ function buyClass(className) {
     }
 }
 
-// ==================== ЗАГРУЗКА КАРТИНОК ДЛЯ АУР (v2.5) ====================
+// ==================== ЗАГРУЗКА КАРТИНОК ДЛЯ АУР ====================
 function loadAuraImages() {
     let loadedCount = 0;
     const totalToLoad = 3;
@@ -3231,11 +3223,10 @@ function loadAuraImages() {
         }
     }
     
-    // Огурец
     cucumberImage = new Image();
     cucumberImage.crossOrigin = 'anonymous';
     cucumberImage.onload = () => {
-        console.log('✅ Огурец загружен:', cucumberImage.src);
+        console.log('✅ Огурец загружен');
         checkAllLoaded();
     };
     cucumberImage.onerror = () => {
@@ -3245,11 +3236,10 @@ function loadAuraImages() {
     };
     cucumberImage.src = 'ogurec.webp';
     
-    // Батидао
     batidaoImage = new Image();
     batidaoImage.crossOrigin = 'anonymous';
     batidaoImage.onload = () => {
-        console.log('✅ Батидао загружен:', batidaoImage.src);
+        console.log('✅ Батидао загружен');
         checkAllLoaded();
     };
     batidaoImage.onerror = () => {
@@ -3259,11 +3249,10 @@ function loadAuraImages() {
     };
     batidaoImage.src = 'batidao.png';
     
-    // Взрыв GIF
     explosionGif = new Image();
     explosionGif.crossOrigin = 'anonymous';
     explosionGif.onload = () => {
-        console.log('✅ Взрыв загружен:', explosionGif.src);
+        console.log('✅ Взрыв загружен');
         checkAllLoaded();
     };
     explosionGif.onerror = () => {
@@ -3274,78 +3263,233 @@ function loadAuraImages() {
     explosionGif.src = 'vzryv.gif';
 }
 
-// ==================== ПОКАЗ АУРЫ С КАРТИНКОЙ (v2.5) ====================
+// ==================== АУРЫ (ВОССТАНОВЛЕННЫЙ "ТУМАН" ИЗ v2.2) ====================
 function showAuraEffectOnPlayer(x, y, aura) {
-    if(activeAuraEffect) { activeAuraEffect.remove(); activeAuraEffect = null; }
+    if(activeAuraEffect) { 
+        activeAuraEffect.remove(); 
+        activeAuraEffect = null; 
+    }
     
     const effect = document.createElement('div');
     effect.className = 'aura-effect player-aura';
     effect.style.position = 'fixed';
     effect.style.pointerEvents = 'none';
     effect.style.zIndex = '200';
+    effect.style.borderRadius = '50%';
     effect.style.left = (x - 150) + 'px';
     effect.style.top = (y - 150) + 'px';
     effect.style.width = '300px';
     effect.style.height = '300px';
     
-    // ==================== АУРЫ С КАРТИНКАМИ ====================
-    if (aura.id === 'cucumber_aura' && cucumberImage && cucumberImage.complete && cucumberImage.naturalWidth > 0) {
-        // Огуречная аура
-        effect.style.background = 'none';
-        effect.style.boxShadow = 'none';
-        effect.style.borderRadius = '0';
-        effect.style.overflow = 'visible';
+    // ==================== БАТИДАО ====================
+    if(aura.id === 'batidao_aura') {
+        effect.style.background = `radial-gradient(circle, ${aura.effectColor} 0%, transparent 70%)`;
+        if(batidaoImage) {
+            effect.style.backgroundImage = `url(${batidaoImage.src})`;
+            effect.style.backgroundSize = 'cover';
+            effect.style.backgroundPosition = 'center';
+            effect.style.backgroundBlend = 'overlay';
+        }
+        effect.style.boxShadow = `0 0 50px ${aura.color}, 0 0 100px ${aura.color}`;
+        effect.style.animation = 'batidaoAuraPlayer 0.5s ease-out forwards';
         
-        const img = document.createElement('img');
-        img.src = cucumberImage.src;
-        img.style.cssText = `
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            animation: cucumberAuraPlayer 0.8s ease-out forwards;
-            filter: drop-shadow(0 0 20px #7CFC00);
-        `;
-        effect.appendChild(img);
-    } 
-    else if (aura.id === 'batidao_aura' && batidaoImage && batidaoImage.complete && batidaoImage.naturalWidth > 0) {
-        // Но батидао
-        effect.style.background = 'none';
-        effect.style.boxShadow = 'none';
-        effect.style.borderRadius = '0';
-        effect.style.overflow = 'visible';
+        for (let i = 0; i < 30; i++) {
+            safeTimeout(() => {
+                const particle = document.createElement('div');
+                particle.style.position = 'fixed';
+                particle.style.left = (x + (Math.random() - 0.5) * 180) + 'px';
+                particle.style.top = (y + (Math.random() - 0.5) * 180) + 'px';
+                particle.style.width = (Math.random() * 8 + 4) + 'px';
+                particle.style.height = (Math.random() * 8 + 4) + 'px';
+                particle.style.background = `#ff${Math.floor(Math.random() * 55 + 200).toString(16)}00`;
+                particle.style.borderRadius = '50%';
+                particle.style.boxShadow = `0 0 15px ${aura.color}`;
+                particle.style.pointerEvents = 'none';
+                particle.style.animation = 'particleExplode 0.5s ease-out forwards';
+                document.body.appendChild(particle);
+                safeTimeout(() => particle.remove(), 500);
+            }, i * 10);
+        }
+    }
+    // ==================== ВЗРЫВ ====================
+    else if(aura.id === 'explosion_aura' && explosionGif) {
+        effect.style.background = `radial-gradient(circle, #ff0000, #ff6600, #ffff00, transparent)`;
+        effect.style.backgroundImage = `url(${explosionGif.src})`;
+        effect.style.backgroundSize = 'cover';
+        effect.style.backgroundPosition = 'center';
+        effect.style.backgroundBlend = 'overlay';
+        effect.style.boxShadow = `0 0 80px #ff0000, 0 0 120px #ff6600`;
+        effect.style.animation = 'explosionAuraPlayer 0.6s ease-out forwards';
+        effect.style.width = '400px';
+        effect.style.height = '400px';
+        effect.style.left = (x - 200) + 'px';
+        effect.style.top = (y - 200) + 'px';
         
-        const img = document.createElement('img');
-        img.src = batidaoImage.src;
-        img.style.cssText = `
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            animation: batidaoAuraPlayer 0.8s ease-out forwards;
-            filter: drop-shadow(0 0 20px #ff0000);
-        `;
-        effect.appendChild(img);
-    } 
-    else if (aura.id === 'explosion_aura' && explosionGif && explosionGif.complete && explosionGif.naturalWidth > 0) {
-        // Взрыв Animated
-        effect.style.background = 'none';
-        effect.style.boxShadow = 'none';
-        effect.style.borderRadius = '0';
-        effect.style.overflow = 'visible';
+        for (let i = 0; i < 50; i++) {
+            safeTimeout(() => {
+                const particle = document.createElement('div');
+                particle.style.position = 'fixed';
+                particle.style.left = (x + (Math.random() - 0.5) * 300) + 'px';
+                particle.style.top = (y + (Math.random() - 0.5) * 300) + 'px';
+                particle.style.width = (Math.random() * 15 + 5) + 'px';
+                particle.style.height = (Math.random() * 15 + 5) + 'px';
+                particle.style.background = `hsl(${Math.random() * 60 + 20}, 100%, 50%)`;
+                particle.style.borderRadius = '50%';
+                particle.style.boxShadow = `0 0 25px #ff6600`;
+                particle.style.pointerEvents = 'none';
+                particle.style.animation = 'particleExplode 0.6s ease-out forwards';
+                document.body.appendChild(particle);
+                safeTimeout(() => particle.remove(), 600);
+            }, i * 8);
+        }
+    }
+    // ==================== ОГУРЕЦ ====================
+    else if(aura.id === 'cucumber_aura' && cucumberImage) {
+        effect.style.background = `radial-gradient(circle, ${aura.effectColor} 0%, transparent 70%)`;
+        effect.style.backgroundImage = `url(${cucumberImage.src})`;
+        effect.style.backgroundSize = 'cover';
+        effect.style.backgroundPosition = 'center';
+        effect.style.backgroundBlend = 'overlay';
+        effect.style.boxShadow = `0 0 50px ${aura.color}, 0 0 80px ${aura.color}`;
+        effect.style.animation = 'cucumberAuraPlayer 0.5s ease-out forwards';
         
-        const img = document.createElement('img');
-        img.src = explosionGif.src;
-        img.style.cssText = `
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            animation: explosionAuraPlayer 0.8s ease-out forwards;
-            filter: drop-shadow(0 0 20px #FF4500);
-        `;
-        effect.appendChild(img);
-    } 
+        for (let i = 0; i < 25; i++) {
+            safeTimeout(() => {
+                const particle = document.createElement('div');
+                particle.style.position = 'fixed';
+                particle.style.left = (x + (Math.random() - 0.5) * 200) + 'px';
+                particle.style.top = (y + (Math.random() - 0.5) * 200) + 'px';
+                particle.style.width = (Math.random() * 10 + 4) + 'px';
+                particle.style.height = (Math.random() * 10 + 4) + 'px';
+                particle.style.background = `#${Math.floor(Math.random() * 100 + 100).toString(16)}ff00`;
+                particle.style.borderRadius = '50%';
+                particle.style.boxShadow = `0 0 15px #7CFC00`;
+                particle.style.pointerEvents = 'none';
+                particle.style.animation = 'particleExplode 0.5s ease-out forwards';
+                document.body.appendChild(particle);
+                safeTimeout(() => particle.remove(), 500);
+            }, i * 12);
+        }
+    }
+    // ==================== ПОДСОЛНЕЧНАЯ ====================
+    else if(aura.id === 'sunflower_aura') {
+        effect.style.background = `radial-gradient(circle, ${aura.effectColor} 0%, #FFD700 30%, transparent 70%)`;
+        effect.style.boxShadow = `0 0 50px ${aura.color}, 0 0 80px #FFA500`;
+        effect.style.animation = 'sunflowerAuraPlayer 0.5s ease-out forwards';
+        
+        for (let i = 0; i < 20; i++) {
+            const angle = (i / 20) * Math.PI * 2;
+            safeTimeout(() => {
+                const particle = document.createElement('div');
+                particle.style.position = 'fixed';
+                particle.style.left = (x + Math.cos(angle) * 120 + (Math.random() - 0.5) * 40) + 'px';
+                particle.style.top = (y + Math.sin(angle) * 120 + (Math.random() - 0.5) * 40) + 'px';
+                particle.style.width = (Math.random() * 8 + 4) + 'px';
+                particle.style.height = (Math.random() * 8 + 4) + 'px';
+                particle.style.background = '#FFD700';
+                particle.style.borderRadius = '50%';
+                particle.style.boxShadow = `0 0 15px #FFA500`;
+                particle.style.pointerEvents = 'none';
+                particle.style.animation = 'particleExplode 0.5s ease-out forwards';
+                document.body.appendChild(particle);
+                safeTimeout(() => particle.remove(), 500);
+            }, i * 15);
+        }
+    }
+    // ==================== ВИШНЁВАЯ (с туманом) ====================
+    else if(aura.id === 'cherry_aura') {
+        effect.style.background = `radial-gradient(circle, #ff3366, #ff6699, transparent)`;
+        effect.style.boxShadow = `0 0 40px #ff3366`;
+        effect.style.animation = 'cherryAuraPlayer 0.4s ease-out forwards';
+        
+        for (let i = 0; i < 20; i++) {
+            safeTimeout(() => {
+                const particle = document.createElement('div');
+                particle.style.position = 'fixed';
+                particle.style.left = (x + (Math.random() - 0.5) * 200) + 'px';
+                particle.style.top = (y + (Math.random() - 0.5) * 200) + 'px';
+                particle.style.width = '8px';
+                particle.style.height = '8px';
+                particle.style.background = '#ff0000';
+                particle.style.borderRadius = '50%';
+                particle.style.pointerEvents = 'none';
+                particle.style.animation = 'particleExplode 0.4s ease-out forwards';
+                document.body.appendChild(particle);
+                safeTimeout(() => particle.remove(), 400);
+            }, i * 10);
+        }
+    }
+    // ==================== ЛАВАНДОВАЯ (с туманом) ====================
+    else if(aura.id === 'lavender_aura') {
+        effect.style.background = `radial-gradient(circle, #E6E6FA, #D8BFD8, transparent)`;
+        effect.style.boxShadow = `0 0 40px #D8BFD8`;
+        effect.style.animation = 'auraExpandPlayer 0.4s ease-out forwards';
+        
+        for (let i = 0; i < 15; i++) {
+            safeTimeout(() => {
+                const particle = document.createElement('div');
+                particle.style.position = 'fixed';
+                particle.style.left = (x + (Math.random() - 0.5) * 180) + 'px';
+                particle.style.top = (y + (Math.random() - 0.5) * 180) + 'px';
+                particle.style.width = '6px';
+                particle.style.height = '6px';
+                particle.style.background = '#DDA0DD';
+                particle.style.borderRadius = '50%';
+                particle.style.pointerEvents = 'none';
+                particle.style.animation = 'particleExplode 0.4s ease-out forwards';
+                document.body.appendChild(particle);
+                safeTimeout(() => particle.remove(), 400);
+            }, i * 15);
+        }
+    }
+    // ==================== РОЗОВАЯ (с туманом) ====================
+    else if(aura.id === 'rose_aura') {
+        effect.style.background = `radial-gradient(circle, #FF69B4, #FF1493, transparent)`;
+        effect.style.boxShadow = `0 0 40px #FF69B4`;
+        effect.style.animation = 'auraExpandPlayer 0.4s ease-out forwards';
+        
+        for (let i = 0; i < 15; i++) {
+            safeTimeout(() => {
+                const particle = document.createElement('div');
+                particle.style.position = 'fixed';
+                particle.style.left = (x + (Math.random() - 0.5) * 160) + 'px';
+                particle.style.top = (y + (Math.random() - 0.5) * 160) + 'px';
+                particle.style.width = '10px';
+                particle.style.height = '10px';
+                particle.style.background = '#FFB6C1';
+                particle.style.borderRadius = '50%';
+                particle.style.pointerEvents = 'none';
+                particle.style.animation = 'particleExplode 0.5s ease-out forwards';
+                document.body.appendChild(particle);
+                safeTimeout(() => particle.remove(), 500);
+            }, i * 15);
+        }
+    }
+    // ==================== ВЕСЕННЯЯ (с туманом) ====================
+    else if(aura.id === 'spring_aura') {
+        effect.style.background = `radial-gradient(circle, #00FA9A, #3CB371, transparent)`;
+        effect.style.boxShadow = `0 0 40px #00FA9A`;
+        effect.style.animation = 'auraExpandPlayer 0.4s ease-out forwards';
+        
+        for (let i = 0; i < 25; i++) {
+            safeTimeout(() => {
+                const particle = document.createElement('div');
+                particle.style.position = 'fixed';
+                particle.style.left = (x + (Math.random() - 0.5) * 200) + 'px';
+                particle.style.top = (y + (Math.random() - 0.5) * 200) + 'px';
+                particle.style.width = (Math.random() * 8 + 4) + 'px';
+                particle.style.height = (Math.random() * 8 + 4) + 'px';
+                particle.style.background = `hsl(${Math.random() * 120 + 60}, 100%, 60%)`;
+                particle.style.borderRadius = '50%';
+                particle.style.pointerEvents = 'none';
+                particle.style.animation = 'particleExplode 0.5s ease-out forwards';
+                document.body.appendChild(particle);
+                safeTimeout(() => particle.remove(), 500);
+            }, i * 10);
+        }
+    }
+    // ==================== ОСТАЛЬНЫЕ АУРЫ (с туманом) ====================
     else {
-        // Обычные ауры — градиент
-        effect.style.borderRadius = '50%';
         effect.style.background = `radial-gradient(circle, ${aura.effectColor}, transparent)`;
         effect.style.boxShadow = `0 0 40px ${aura.color}`;
         effect.style.animation = 'auraExpandPlayer 0.4s ease-out forwards';
@@ -3353,12 +3497,13 @@ function showAuraEffectOnPlayer(x, y, aura) {
     
     document.body.appendChild(effect);
     activeAuraEffect = effect;
+    
     safeTimeout(() => { 
         if(activeAuraEffect) { 
             activeAuraEffect.remove(); 
             activeAuraEffect = null; 
         } 
-    }, 800);
+    }, 500);
 }
 
 function gameLoop(){
