@@ -1,4 +1,4 @@
-/* style.css - QUBES ПОЛНАЯ ВЕРСИЯ (v2.5) - РАБОЧИЕ АУРЫ + ВСЕ UI */
+/* style.css - QUBES ПОЛНАЯ ВЕРСИЯ (v2.6) - ЯРКИЕ КРУГЛЫЕ АУРЫ + ВСЕ UI */
 @import url('https://fonts.googleapis.com/css2?family=Unbounded:wght@400;500;600;700;800;900&family=Montserrat+Alternates:wght@400;500;600;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Play:wght@400;700&family=Orbitron:wght@400;700;900&display=swap');
 
@@ -1108,17 +1108,26 @@ button:disabled {
 }
 
 /* =================================================================
-   !!! КРИТИЧЕСКИ ВАЖНО: РАБОЧИЕ АУРЫ С КАРТИНКАМИ !!!
+   !!! КРИТИЧЕСКИ ВАЖНО: ЯРКИЕ И КРУГЛЫЕ АУРЫ С КАРТИНКАМИ !!!
    ================================================================= */
 .aura-effect {
     position: fixed;
     pointer-events: none;
-    border-radius: 50%;
     z-index: 50;
-    /* ОБЯЗАТЕЛЬНО для корректного смешивания картинки и градиента */
+    
+    /* 1. Идеальная круглая обрезка */
+    border-radius: 50% !important;
+    overflow: hidden !important;
+    
+    /* 2. Настройки фона */
     background-size: cover !important;
     background-position: center !important;
-    background-blend-mode: overlay !important;
+    
+    /* 3. УБИРАЕМ тусклость: нормальное наложение вместо overlay */
+    background-blend-mode: normal !important; 
+    
+    /* 4. ДЕЛАЕМ ЯРЧЕ: повышаем яркость и контраст + добавляем свечение */
+    filter: brightness(1.5) contrast(1.2) drop-shadow(0 0 15px rgba(255, 255, 255, 0.4));
 }
 
 .player-aura {
@@ -1139,12 +1148,12 @@ button:disabled {
     100% { transform: scale(2) rotate(360deg); opacity: 0; }
 }
 
-/* Анимация для ауры Взрыв Animated */
+/* Анимация для ауры Взрыв Animated (с динамической яркостью) */
 @keyframes explosionAuraPlayer {
-    0% { transform: scale(0.2) rotate(0deg); opacity: 1; filter: brightness(1); }
-    30% { transform: scale(1.2) rotate(120deg); opacity: 0.9; filter: brightness(1.5); }
-    60% { transform: scale(1.8) rotate(240deg); opacity: 0.6; filter: brightness(2); }
-    100% { transform: scale(2.5) rotate(360deg); opacity: 0; filter: brightness(3); }
+    0% { transform: scale(0.2) rotate(0deg); opacity: 1; filter: brightness(1.5) contrast(1.2); }
+    30% { transform: scale(1.2) rotate(120deg); opacity: 0.9; filter: brightness(1.8) contrast(1.3); }
+    60% { transform: scale(1.8) rotate(240deg); opacity: 0.6; filter: brightness(2.0) contrast(1.3); }
+    100% { transform: scale(2.5) rotate(360deg); opacity: 0; filter: brightness(2.5) contrast(1.5); }
 }
 
 /* Анимация для Подсолнечной ауры */
@@ -1423,5 +1432,4 @@ button:disabled {
         font-size: 11px;
         padding: 8px 14px;
     }
-}
 }
