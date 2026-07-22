@@ -1,7 +1,8 @@
-/* style.css - QUBES v2.1 */
+/* style.css - QUBES ПОЛНАЯ ВЕРСИЯ (v2.5) - РАБОЧИЕ АУРЫ + ВСЕ UI */
 @import url('https://fonts.googleapis.com/css2?family=Unbounded:wght@400;500;600;700;800;900&family=Montserrat+Alternates:wght@400;500;600;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Play:wght@400;700&family=Orbitron:wght@400;700;900&display=swap');
 
+/* ==================== БАЗОВЫЕ НАСТРОЙКИ ==================== */
 * {
     margin: 0;
     padding: 0;
@@ -24,6 +25,7 @@ canvas {
     cursor: crosshair;
 }
 
+/* ==================== ЭКРАН ЗАГРУЗКИ ==================== */
 #loading {
     position: fixed;
     top: 0;
@@ -72,6 +74,7 @@ canvas {
     transition: width 0.3s;
 }
 
+/* ==================== ГЛОБАЛЬНЫЕ ЭКРАНЫ ==================== */
 #levelComplete, #gameOver, #bossWarning {
     position: fixed;
     top: 0;
@@ -89,7 +92,8 @@ canvas {
     font-family: 'Unbounded', sans-serif;
 }
 
-#pauseMenu {
+#pauseMenu, #caseShopScreen, #classShopScreen, #cardCraftScreen, #modsMenuScreen, 
+#promoCodeScreen, #profileScreen {
     position: fixed;
     top: 0;
     left: 0;
@@ -104,11 +108,11 @@ canvas {
     backdrop-filter: blur(10px);
 }
 
-.pause-content {
+.pause-content, .shop-content {
     background: rgba(26, 26, 46, 0.95);
     padding: 30px;
     border-radius: 20px;
-    max-width: 500px;
+    max-width: 700px;
     width: 90%;
     max-height: 90vh;
     overflow-y: auto;
@@ -121,33 +125,6 @@ canvas {
     flex-wrap: wrap;
     justify-content: center;
     gap: 10px;
-}
-
-#caseShopScreen, #classShopScreen, #cardCraftScreen, #modsMenuScreen, 
-#promoCodeScreen, #profileScreen {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.85);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    z-index: 500;
-    backdrop-filter: blur(10px);
-}
-
-.shop-content {
-    background: rgba(26, 26, 46, 0.95);
-    padding: 30px;
-    border-radius: 20px;
-    max-width: 700px;
-    width: 90%;
-    max-height: 90vh;
-    overflow-y: auto;
-    text-align: center;
-    border: 2px solid #FFDE7D;
 }
 
 /* ==================== ВКЛАДКИ МАГАЗИНА ==================== */
@@ -204,6 +181,7 @@ canvas {
     to { opacity: 1; transform: translateY(0); }
 }
 
+/* ==================== КЕЙСЫ И МАГАЗИН ==================== */
 .chests-container, .classes-container {
     display: flex;
     flex-wrap: wrap;
@@ -423,9 +401,9 @@ canvas {
 }
 
 @keyframes shakeChest {
-    0%,100%{transform:rotate(0deg);}
-    25%{transform:rotate(-12deg);}
-    75%{transform:rotate(12deg);}
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(-12deg); }
+    75% { transform: rotate(12deg); }
 }
 
 .chest.shaking {
@@ -439,6 +417,7 @@ canvas {
     font-family: 'Unbounded', sans-serif;
 }
 
+/* ==================== ЗАГОЛОВКИ И ТЕКСТ ==================== */
 #bossWarning {
     z-index: 600;
     background: rgba(139, 0, 0, 0.9);
@@ -505,6 +484,7 @@ canvas {
     font-weight: bold;
 }
 
+/* ==================== ИНТЕРФЕЙС (HUD) ==================== */
 #ui {
     position: fixed;
     top: 20px;
@@ -734,13 +714,8 @@ canvas {
     font-family: 'Unbounded', monospace;
 }
 
-.elo-change.positive {
-    color: #4af626;
-}
-
-.elo-change.negative {
-    color: #ff2e63;
-}
+.elo-change.positive { color: #4af626; }
+.elo-change.negative { color: #ff2e63; }
 
 @keyframes eloChangeAnim {
     0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
@@ -749,6 +724,7 @@ canvas {
     100% { opacity: 0; transform: translate(-50%, -100%) scale(0.8); }
 }
 
+/* ==================== КНОПКИ ==================== */
 button {
     background: linear-gradient(135deg, #4af626, #08D9D6);
     color: #000;
@@ -778,9 +754,7 @@ button::before {
     transition: left 0.5s;
 }
 
-button:hover::before {
-    left: 100%;
-}
+button:hover::before { left: 100%; }
 
 button:hover {
     transform: translateY(-3px) scale(1.05);
@@ -806,6 +780,7 @@ button:disabled {
     transform: none;
 }
 
+/* ==================== СТАТИСТИКА ==================== */
 .stat {
     margin-bottom: 6px;
     display: flex;
@@ -825,6 +800,7 @@ button:disabled {
     font-family: 'Unbounded', sans-serif;
 }
 
+/* ==================== МОБИЛЬНОЕ УПРАВЛЕНИЕ ==================== */
 #mobileControls {
     position: fixed;
     bottom: 20px;
@@ -897,6 +873,7 @@ button:disabled {
     align-items: flex-end;
 }
 
+/* ==================== МАГАЗИН ПРЕДМЕТОВ ==================== */
 .shop-header {
     display: flex;
     align-items: center;
@@ -1130,24 +1107,72 @@ button:disabled {
     border: 1px solid #ffff00;
 }
 
+/* =================================================================
+   !!! КРИТИЧЕСКИ ВАЖНО: РАБОЧИЕ АУРЫ С КАРТИНКАМИ !!!
+   ================================================================= */
 .aura-effect {
     position: fixed;
     pointer-events: none;
     border-radius: 50%;
-    animation: auraExpand 0.8s ease-out forwards;
     z-index: 50;
+    /* ОБЯЗАТЕЛЬНО для корректного смешивания картинки и градиента */
+    background-size: cover !important;
+    background-position: center !important;
+    background-blend-mode: overlay !important;
 }
 
-@keyframes auraExpand {
-    0% { transform: scale(0); opacity: 0.8; }
-    100% { transform: scale(3); opacity: 0; }
+.player-aura {
+    transform-origin: center center;
 }
 
+/* Анимация для ауры "Но батидао" */
+@keyframes batidaoAuraPlayer {
+    0% { transform: scale(0.3) rotate(0deg); opacity: 1; }
+    50% { transform: scale(1.2) rotate(180deg); opacity: 0.8; }
+    100% { transform: scale(1.8) rotate(360deg); opacity: 0; }
+}
+
+/* Анимация для Огуречной ауры */
+@keyframes cucumberAuraPlayer {
+    0% { transform: scale(0.3) rotate(0deg); opacity: 1; }
+    50% { transform: scale(1.3) rotate(180deg); opacity: 0.8; }
+    100% { transform: scale(2) rotate(360deg); opacity: 0; }
+}
+
+/* Анимация для ауры Взрыв Animated */
+@keyframes explosionAuraPlayer {
+    0% { transform: scale(0.2) rotate(0deg); opacity: 1; filter: brightness(1); }
+    30% { transform: scale(1.2) rotate(120deg); opacity: 0.9; filter: brightness(1.5); }
+    60% { transform: scale(1.8) rotate(240deg); opacity: 0.6; filter: brightness(2); }
+    100% { transform: scale(2.5) rotate(360deg); opacity: 0; filter: brightness(3); }
+}
+
+/* Анимация для Подсолнечной ауры */
+@keyframes sunflowerAuraPlayer {
+    0% { transform: scale(0.3) rotate(0deg); opacity: 1; }
+    50% { transform: scale(1.3) rotate(180deg); opacity: 0.8; }
+    100% { transform: scale(2) rotate(360deg); opacity: 0; }
+}
+
+/* Анимация для Вишнёвой ауры */
+@keyframes cherryAuraPlayer {
+    0% { transform: scale(0.5); opacity: 1; }
+    100% { transform: scale(2); opacity: 0; }
+}
+
+/* Базовая анимация расширения для обычных аур */
 @keyframes auraExpandPlayer {
-    0% { transform: scale(0.5) translate(0, 0); opacity: 0.8; }
-    100% { transform: scale(1.5) translate(0, 0); opacity: 0; }
+    0% { transform: scale(0.5); opacity: 0.8; }
+    100% { transform: scale(1.5); opacity: 0; }
 }
 
+/* Анимация для частиц */
+@keyframes particleExplode {
+    0% { transform: scale(1); opacity: 1; }
+    100% { transform: scale(0) translateY(-60px); opacity: 0; }
+}
+
+/* ==================== ЧАСТИЦЫ И ЭФФЕКТЫ ==================== */
 .skin-particle-05 {
     position: fixed;
     font-size: 16px;
@@ -1181,8 +1206,35 @@ button:disabled {
     100% { transform: translateX(60px) scale(0.3); opacity: 0; }
 }
 
-.player-aura {
-    transform-origin: center center;
+.screen-shake {
+    animation: shake 0.3s ease-in-out;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-8px); }
+    75% { transform: translateX(8px); }
+}
+
+.bg-particle {
+    position: fixed;
+    pointer-events: none;
+    border-radius: 50%;
+    z-index: 1;
+}
+
+.aura-key-drop {
+    position: fixed;
+    pointer-events: none;
+    font-size: 24px;
+    animation: keyFloat 1s ease-out forwards;
+    z-index: 200;
+    font-family: 'Unbounded', monospace;
+}
+
+@keyframes keyFloat {
+    0% { transform: translateY(0) scale(1); opacity: 1; }
+    100% { transform: translateY(-100px) scale(0.5); opacity: 0; }
 }
 
 /* ==================== ПРОМОКОД ==================== */
@@ -1316,6 +1368,7 @@ button:disabled {
     transform: scale(1.2);
 }
 
+/* ==================== АДАПТИВНОСТЬ ==================== */
 @media (max-width: 768px) {
     #ui {
         font-size: 14px;
@@ -1371,20 +1424,4 @@ button:disabled {
         padding: 8px 14px;
     }
 }
-
-.screen-shake {
-    animation: shake 0.3s ease-in-out;
-}
-
-@keyframes shake {
-    0%, 100% { transform: translateX(0); }
-    25% { transform: translateX(-8px); }
-    75% { transform: translateX(8px); }
-}
-
-.bg-particle {
-    position: fixed;
-    pointer-events: none;
-    border-radius: 50%;
-    z-index: 1;
 }
