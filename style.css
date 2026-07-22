@@ -1,4 +1,4 @@
-/* style.css - QUBES v2.5 - AURA IMAGES FIXED */
+/* style.css - QUBES v2.3 - AURA BRIGHTNESS FIXED */
 @import url('https://fonts.googleapis.com/css2?family=Unbounded:wght@400;500;600;700;800;900&family=Montserrat+Alternates:wght@400;500;600;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Play:wght@400;700&family=Orbitron:wght@400;700;900&display=swap');
 
@@ -1130,27 +1130,40 @@ button:disabled {
     border: 1px solid #ffff00;
 }
 
-/* ==================== АУРЫ С КАРТИНКАМИ (v2.5) ==================== */
+/* ==================== АУРЫ (ВОССТАНОВЛЕННАЯ ЯРКОСТЬ v2.1) ==================== */
 .aura-effect {
     position: fixed;
     pointer-events: none;
     border-radius: 50%;
-    animation: auraExpand 0.8s ease-out forwards;
     z-index: 50;
-    overflow: hidden;
+    /* overflow: hidden - УДАЛЕНО для сохранения свечения */
+    /* animation - УДАЛЕНО, задаётся в JS */
 }
 
-@keyframes auraExpand {
-    0% { transform: scale(0); opacity: 0.8; }
-    100% { transform: scale(3); opacity: 0; }
-}
-
+/* Анимации аур (как в v2.1) */
 @keyframes auraExpandPlayer {
-    0% { transform: scale(0.5) translate(0, 0); opacity: 0.8; }
-    100% { transform: scale(1.5) translate(0, 0); opacity: 0; }
+    0% { 
+        transform: scale(0.5) translate(0, 0); 
+        opacity: 0.8; 
+    }
+    100% { 
+        transform: scale(1.5) translate(0, 0); 
+        opacity: 0; 
+    }
 }
 
-/* Анимация для огуречной ауры */
+@keyframes particleExplode {
+    0% { 
+        transform: scale(1); 
+        opacity: 1; 
+    }
+    100% { 
+        transform: scale(0) translateY(-60px); 
+        opacity: 0; 
+    }
+}
+
+/* Специальные анимации для картинок */
 @keyframes cucumberAuraPlayer {
     0% { 
         transform: scale(0.3) rotate(0deg); 
@@ -1166,7 +1179,6 @@ button:disabled {
     }
 }
 
-/* Анимация для ауры Но батидао */
 @keyframes batidaoAuraPlayer {
     0% { 
         transform: scale(0.3) rotate(0deg); 
@@ -1182,7 +1194,6 @@ button:disabled {
     }
 }
 
-/* Анимация для взрыва */
 @keyframes explosionAuraPlayer {
     0% { 
         transform: scale(0.2) rotate(0deg); 
