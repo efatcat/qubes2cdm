@@ -1,4 +1,4 @@
-Версия ver2 2.3 game.js // game.js - QUBES v2.5 - AURA IMAGES FIXED
+// game.js - QUBES v2.5 - AURA IMAGES FIXED
 
 const CONFIG = {
     player: { width: 40, height: 40, speed: 6, jumpPower: 16, gravity: 0.8, friction: 0.85, dashSpeed: 20, dashDuration: 12, dashCooldown: 45, maxDashes: 2, doubleJump: true },
