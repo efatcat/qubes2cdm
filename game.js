@@ -1,4 +1,4 @@
-// game.js - QUBES v2.5 - AURA IMAGES FIXED
+Версия ver2 2.3 game.js // game.js - QUBES v2.5 - AURA IMAGES FIXED
 
 const CONFIG = {
     player: { width: 40, height: 40, speed: 6, jumpPower: 16, gravity: 0.8, friction: 0.85, dashSpeed: 20, dashDuration: 12, dashCooldown: 45, maxDashes: 2, doubleJump: true },
@@ -3274,12 +3274,9 @@ function loadAuraImages() {
     explosionGif.src = 'vzryv.gif';
 }
 
-// ==================== ПОКАЗ АУРЫ (ВОССТАНОВЛЕННАЯ ЯРКОСТЬ v2.1) ====================
+// ==================== ПОКАЗ АУРЫ С КАРТИНКОЙ (v2.5) ====================
 function showAuraEffectOnPlayer(x, y, aura) {
-    if(activeAuraEffect) { 
-        activeAuraEffect.remove(); 
-        activeAuraEffect = null; 
-    }
+    if(activeAuraEffect) { activeAuraEffect.remove(); activeAuraEffect = null; }
     
     const effect = document.createElement('div');
     effect.className = 'aura-effect player-aura';
@@ -3293,6 +3290,7 @@ function showAuraEffectOnPlayer(x, y, aura) {
     
     // ==================== АУРЫ С КАРТИНКАМИ ====================
     if (aura.id === 'cucumber_aura' && cucumberImage && cucumberImage.complete && cucumberImage.naturalWidth > 0) {
+        // Огуречная аура
         effect.style.background = 'none';
         effect.style.boxShadow = 'none';
         effect.style.borderRadius = '0';
@@ -3305,11 +3303,12 @@ function showAuraEffectOnPlayer(x, y, aura) {
             height: 100%;
             object-fit: contain;
             animation: cucumberAuraPlayer 0.8s ease-out forwards;
-            filter: drop-shadow(0 0 30px #7CFC00) drop-shadow(0 0 60px #7CFC0044);
+            filter: drop-shadow(0 0 20px #7CFC00);
         `;
         effect.appendChild(img);
     } 
     else if (aura.id === 'batidao_aura' && batidaoImage && batidaoImage.complete && batidaoImage.naturalWidth > 0) {
+        // Но батидао
         effect.style.background = 'none';
         effect.style.boxShadow = 'none';
         effect.style.borderRadius = '0';
@@ -3322,11 +3321,12 @@ function showAuraEffectOnPlayer(x, y, aura) {
             height: 100%;
             object-fit: contain;
             animation: batidaoAuraPlayer 0.8s ease-out forwards;
-            filter: drop-shadow(0 0 30px #ff0000) drop-shadow(0 0 60px #ff000044);
+            filter: drop-shadow(0 0 20px #ff0000);
         `;
         effect.appendChild(img);
     } 
     else if (aura.id === 'explosion_aura' && explosionGif && explosionGif.complete && explosionGif.naturalWidth > 0) {
+        // Взрыв Animated
         effect.style.background = 'none';
         effect.style.boxShadow = 'none';
         effect.style.borderRadius = '0';
@@ -3339,44 +3339,16 @@ function showAuraEffectOnPlayer(x, y, aura) {
             height: 100%;
             object-fit: contain;
             animation: explosionAuraPlayer 0.8s ease-out forwards;
-            filter: drop-shadow(0 0 30px #FF4500) drop-shadow(0 0 60px #FF450044);
+            filter: drop-shadow(0 0 20px #FF4500);
         `;
         effect.appendChild(img);
     } 
     else {
-        // ==================== ОБЫЧНЫЕ АУРЫ (как в v2.1) ====================
+        // Обычные ауры — градиент
         effect.style.borderRadius = '50%';
         effect.style.background = `radial-gradient(circle, ${aura.effectColor}, transparent)`;
-        effect.style.boxShadow = `0 0 60px ${aura.color}, 0 0 100px ${aura.color}40`;
+        effect.style.boxShadow = `0 0 40px ${aura.color}`;
         effect.style.animation = 'auraExpandPlayer 0.4s ease-out forwards';
-        
-        // ДОБАВЛЯЕМ ЧАСТИЦЫ (как в v2.1) - для всех обычных аур
-        const particleCount = aura.id === 'lavender_aura' ? 20 : 15;
-        for (let i = 0; i < particleCount; i++) {
-            safeTimeout(() => {
-                const particle = document.createElement('div');
-                const size = Math.random() * 8 + 4;
-                const angle = Math.random() * Math.PI * 2;
-                const distance = 50 + Math.random() * 130;
-                const px = x + Math.cos(angle) * distance;
-                const py = y + Math.sin(angle) * distance;
-                particle.style.cssText = `
-                    position: fixed;
-                    left: ${px}px;
-                    top: ${py}px;
-                    width: ${size}px;
-                    height: ${size}px;
-                    background: ${aura.color};
-                    border-radius: 50%;
-                    box-shadow: 0 0 20px ${aura.color}, 0 0 40px ${aura.color}44;
-                    pointer-events: none;
-                    animation: particleExplode ${0.4 + Math.random() * 0.3}s ease-out forwards;
-                    z-index: 50;
-                `;
-                document.body.appendChild(particle);
-                safeTimeout(() => particle.remove(), 700);
-            }, i * 12);
-        }
     }
     
     document.body.appendChild(effect);
