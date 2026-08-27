@@ -1,4 +1,4 @@
-// game.js - QUBES v2.3 - NO CLASSES
+// game.js - QUBES v2.3 - NO CLASSES, NO SHOOTING, FIXED BIOMS & AURA IMAGES
 
 const CONFIG = {
     player: { width: 40, height: 40, speed: 6, jumpPower: 16, gravity: 0.8, friction: 0.85, dashSpeed: 20, dashDuration: 12, dashCooldown: 45, maxDashes: 2, doubleJump: true },
@@ -118,6 +118,7 @@ let lastKaleidoscopeDate = null;
 let batidaoImage = null;
 let cucumberImage = null;
 let explosionGif = null;
+let auraImagesLoaded = false;
 let activeAuraEffect = null;
 let gameLoopId = null;
 let activeTimeouts = [];
@@ -129,6 +130,7 @@ let biomImages = [];
 let biomLoaded = false;
 let biomFileNames = [];
 let biomLoadingStarted = false;
+let biomLoadAttempts = 0;
 
 const BUILTIN_BIOMS = [
     { type: 'gradient', colors: ['#0a0a1a', '#1a1a2e'], name: 'Тёмный лес' },
@@ -163,9 +165,6 @@ let equippedAccessory = localStorage.getItem('kolblocks_equipped_accessory') || 
 
 let usedPromoCodes = JSON.parse(localStorage.getItem('kolblocks_used_promos')) || [];
 let playerNickname = localStorage.getItem('kolblocks_nickname') || '';
-
-let arrowCooldownTimer = 0;
-let arrowsList = [];
 
 const platformTextures = [ {color: '#FF2E63', pattern: 'stripes'}, {color: '#08D9D6', pattern: 'dots'}, {color: '#FFDE7D', pattern: 'checker'}, {color: '#6A2C70', pattern: 'zigzag'}, {color: '#4ECDC4', pattern: 'bricks'}, {color: '#FF9A76', pattern: 'waves'} ];
 const enemyColors = ['#FF2E63', '#FFDE7D', '#6A2C70', '#08D9D6', '#AA00FF'];
@@ -313,123 +312,6 @@ function getTrailData(id) {
     if (!id) return null;
     const all = [...CASE_TRAILS, ...SPECIAL_TRAILS, ...PAID_TRAILS];
     return all.find(t=>t.id===id) || null;
-}
-
-function shootArrow() {
-    if (arrowCooldownTimer > 0) return;
-    
-    arrowCooldownTimer = 6;
-    
-    const direction = player.dashDirection === -1 ? -1 : 1;
-    const startX = player.x + player.width/2 + (direction === 1 ? 28 : -28);
-    const startY = player.y + player.height/2 - 5;
-    
-    const skin = getSkinData(equippedSkin);
-    const arrowColor = skin.color;
-    
-    arrowsList.push({
-        x: startX,
-        y: startY,
-        vx: direction * 16,
-        vy: 0,
-        active: true,
-        damage: 1.5,
-        color: arrowColor
-    });
-    
-    AudioSys.play(660, 0.08, 'sine', 0.12);
-}
-
-function updateArrows() {
-    if (arrowCooldownTimer > 0) arrowCooldownTimer--;
-    
-    for (let i = 0; i < arrowsList.length; i++) {
-        const a = arrowsList[i];
-        a.x += a.vx;
-        a.y += a.vy;
-        
-        let hit = false;
-        
-        for (let j = 0; j < enemies.length; j++) {
-            const e = enemies[j];
-            if (e.active && a.x > e.x && a.x < e.x + e.width && a.y > e.y && a.y < e.y + e.height) {
-                if (e.takeDamage()) enemies.splice(j, 1);
-                hit = true;
-                updateCombo();
-                for (let k = 0; k < 12; k++) particlePool.acquire(a.x, a.y, a.color || '#ffff00');
-                break;
-            }
-        }
-        
-        if (!hit) {
-            for (let j = 0; j < flyingEnemies.length; j++) {
-                const fe = flyingEnemies[j];
-                if (fe.active && a.x > fe.x && a.x < fe.x + fe.width && a.y > fe.y && a.y < fe.y + fe.height) {
-                    if (fe.takeDamage()) flyingEnemies.splice(j, 1);
-                    hit = true;
-                    updateCombo();
-                    for (let k = 0; k < 12; k++) particlePool.acquire(a.x, a.y, a.color || '#ffff00');
-                    break;
-                }
-            }
-        }
-        
-        if (!hit && vortexEnemies) {
-            for (let j = 0; j < vortexEnemies.length; j++) {
-                const ve = vortexEnemies[j];
-                if (ve.active && a.x > ve.x && a.x < ve.x + ve.width && a.y > ve.y && a.y < ve.y + ve.height) {
-                    if (ve.takeDamage()) vortexEnemies.splice(j, 1);
-                    hit = true;
-                    updateCombo();
-                    for (let k = 0; k < 12; k++) particlePool.acquire(a.x, a.y, a.color || '#ffff00');
-                    break;
-                }
-            }
-        }
-        
-        if (!hit && boss && boss.active && a.x > boss.x && a.x < boss.x + boss.width && a.y > boss.y && a.y < boss.y + boss.height) {
-            boss.takeDamage();
-            hit = true;
-            updateCombo();
-            for (let k = 0; k < 18; k++) particlePool.acquire(a.x, a.y, a.color || '#ffff00');
-        }
-        
-        if (hit || a.x < cameraX - 100 || a.x > cameraX + canvas.width + 100 || a.y > canvas.height + 100 || a.y < -100) {
-            arrowsList.splice(i, 1);
-            i--;
-        }
-    }
-}
-
-function drawArrows() {
-    for (const a of arrowsList) {
-        ctx.shadowBlur = 18;
-        ctx.shadowColor = a.color || '#ffff00';
-        
-        ctx.beginPath();
-        ctx.arc(a.x - cameraX, a.y, 14, 0, Math.PI * 2);
-        ctx.fillStyle = (a.color || '#ffff00') + '40';
-        ctx.fill();
-        
-        ctx.beginPath();
-        ctx.arc(a.x - cameraX, a.y, 10, 0, Math.PI * 2);
-        ctx.fillStyle = a.color || '#ffff00';
-        ctx.fill();
-        
-        ctx.beginPath();
-        ctx.arc(a.x - cameraX, a.y, 5, 0, Math.PI * 2);
-        ctx.fillStyle = '#ffffff';
-        ctx.fill();
-        
-        ctx.beginPath();
-        ctx.moveTo(a.x - cameraX - 12, a.y);
-        ctx.lineTo(a.x - cameraX - 24, a.y - 6);
-        ctx.lineTo(a.x - cameraX - 24, a.y + 6);
-        ctx.fillStyle = a.color || '#ffff00';
-        ctx.fill();
-        
-        ctx.shadowBlur = 0;
-    }
 }
 
 function openCardCraft() {
@@ -3047,7 +2929,7 @@ function showResult(title, text, col) {
 
 function hideResult() { const r = document.getElementById('chestResult'); if(r) r.style.display = 'none'; }
 
-// ==================== ЗАГРУЗКА КАРТИНОК ДЛЯ АУР ====================
+// ==================== ЗАГРУЗКА КАРТИНОК ДЛЯ АУР (FIXED) ====================
 function loadAuraImages() {
     let loadedCount = 0;
     const totalToLoad = 3;
@@ -3055,30 +2937,63 @@ function loadAuraImages() {
     function checkAllLoaded() {
         loadedCount++;
         if (loadedCount >= totalToLoad) {
+            auraImagesLoaded = true;
             console.log('✅ Все картинки аур загружены');
         }
     }
     
+    // Огурец
     cucumberImage = new Image();
     cucumberImage.crossOrigin = 'anonymous';
-    cucumberImage.onload = () => { console.log('✅ Огурец загружен'); checkAllLoaded(); };
-    cucumberImage.onerror = () => { console.error('❌ Не удалось загрузить огурец'); cucumberImage = null; checkAllLoaded(); };
+    cucumberImage.onload = () => { 
+        console.log('✅ Огурец загружен:', cucumberImage.src);
+        checkAllLoaded(); 
+    };
+    cucumberImage.onerror = () => { 
+        console.warn('⚠️ Огурец не загружен, будет использован градиент');
+        cucumberImage = null; 
+        checkAllLoaded(); 
+    };
     cucumberImage.src = 'ogurec.webp';
     
+    // Батидао
     batidaoImage = new Image();
     batidaoImage.crossOrigin = 'anonymous';
-    batidaoImage.onload = () => { console.log('✅ Батидао загружен'); checkAllLoaded(); };
-    batidaoImage.onerror = () => { console.error('❌ Не удалось загрузить батидао'); batidaoImage = null; checkAllLoaded(); };
+    batidaoImage.onload = () => { 
+        console.log('✅ Батидао загружен:', batidaoImage.src);
+        checkAllLoaded(); 
+    };
+    batidaoImage.onerror = () => { 
+        console.warn('⚠️ Батидао не загружен, будет использован градиент');
+        batidaoImage = null; 
+        checkAllLoaded(); 
+    };
     batidaoImage.src = 'batidao.png';
     
+    // Взрыв
     explosionGif = new Image();
     explosionGif.crossOrigin = 'anonymous';
-    explosionGif.onload = () => { console.log('✅ Взрыв загружен'); checkAllLoaded(); };
-    explosionGif.onerror = () => { console.error('❌ Не удалось загрузить взрыв'); explosionGif = null; checkAllLoaded(); };
+    explosionGif.onload = () => { 
+        console.log('✅ Взрыв загружен:', explosionGif.src);
+        checkAllLoaded(); 
+    };
+    explosionGif.onerror = () => { 
+        console.warn('⚠️ Взрыв не загружен, будет использован градиент');
+        explosionGif = null; 
+        checkAllLoaded(); 
+    };
     explosionGif.src = 'vzryv.gif';
+    
+    // Если картинки не загрузились за 3 секунды — всё равно продолжаем
+    setTimeout(() => {
+        if (loadedCount < totalToLoad) {
+            console.warn('⚠️ Таймаут загрузки картинок аур, продолжаем без них');
+            auraImagesLoaded = true;
+        }
+    }, 3000);
 }
 
-// ==================== АУРЫ (ВОССТАНОВЛЕННЫЙ "ТУМАН" ИЗ v2.2) ====================
+// ==================== ПОКАЗ АУР (С ТУМАНОМ) ====================
 function showAuraEffectOnPlayer(x, y, aura) {
     if(activeAuraEffect) { 
         activeAuraEffect.remove(); 
@@ -3096,9 +3011,10 @@ function showAuraEffectOnPlayer(x, y, aura) {
     effect.style.width = '300px';
     effect.style.height = '300px';
     
+    // БАТИДАО
     if(aura.id === 'batidao_aura') {
         effect.style.background = `radial-gradient(circle, ${aura.effectColor} 0%, transparent 70%)`;
-        if(batidaoImage) {
+        if(batidaoImage && batidaoImage.complete && batidaoImage.naturalWidth > 0) {
             effect.style.backgroundImage = `url(${batidaoImage.src})`;
             effect.style.backgroundSize = 'cover';
             effect.style.backgroundPosition = 'center';
@@ -3124,12 +3040,15 @@ function showAuraEffectOnPlayer(x, y, aura) {
             }, i * 10);
         }
     }
-    else if(aura.id === 'explosion_aura' && explosionGif) {
+    // ВЗРЫВ
+    else if(aura.id === 'explosion_aura') {
         effect.style.background = `radial-gradient(circle, #ff0000, #ff6600, #ffff00, transparent)`;
-        effect.style.backgroundImage = `url(${explosionGif.src})`;
-        effect.style.backgroundSize = 'cover';
-        effect.style.backgroundPosition = 'center';
-        effect.style.backgroundBlend = 'overlay';
+        if(explosionGif && explosionGif.complete && explosionGif.naturalWidth > 0) {
+            effect.style.backgroundImage = `url(${explosionGif.src})`;
+            effect.style.backgroundSize = 'cover';
+            effect.style.backgroundPosition = 'center';
+            effect.style.backgroundBlend = 'overlay';
+        }
         effect.style.boxShadow = `0 0 80px #ff0000, 0 0 120px #ff6600`;
         effect.style.animation = 'explosionAuraPlayer 0.6s ease-out forwards';
         effect.style.width = '400px';
@@ -3154,12 +3073,15 @@ function showAuraEffectOnPlayer(x, y, aura) {
             }, i * 8);
         }
     }
-    else if(aura.id === 'cucumber_aura' && cucumberImage) {
+    // ОГУРЕЦ
+    else if(aura.id === 'cucumber_aura') {
         effect.style.background = `radial-gradient(circle, ${aura.effectColor} 0%, transparent 70%)`;
-        effect.style.backgroundImage = `url(${cucumberImage.src})`;
-        effect.style.backgroundSize = 'cover';
-        effect.style.backgroundPosition = 'center';
-        effect.style.backgroundBlend = 'overlay';
+        if(cucumberImage && cucumberImage.complete && cucumberImage.naturalWidth > 0) {
+            effect.style.backgroundImage = `url(${cucumberImage.src})`;
+            effect.style.backgroundSize = 'cover';
+            effect.style.backgroundPosition = 'center';
+            effect.style.backgroundBlend = 'overlay';
+        }
         effect.style.boxShadow = `0 0 50px ${aura.color}, 0 0 80px ${aura.color}`;
         effect.style.animation = 'cucumberAuraPlayer 0.5s ease-out forwards';
         for (let i = 0; i < 25; i++) {
@@ -3180,6 +3102,7 @@ function showAuraEffectOnPlayer(x, y, aura) {
             }, i * 12);
         }
     }
+    // ПОДСОЛНЕЧНАЯ
     else if(aura.id === 'sunflower_aura') {
         effect.style.background = `radial-gradient(circle, ${aura.effectColor} 0%, #FFD700 30%, transparent 70%)`;
         effect.style.boxShadow = `0 0 50px ${aura.color}, 0 0 80px #FFA500`;
@@ -3203,6 +3126,7 @@ function showAuraEffectOnPlayer(x, y, aura) {
             }, i * 15);
         }
     }
+    // ВИШНЁВАЯ (с туманом)
     else if(aura.id === 'cherry_aura') {
         effect.style.background = `radial-gradient(circle, #ff3366, #ff6699, transparent)`;
         effect.style.boxShadow = `0 0 40px #ff3366`;
@@ -3224,6 +3148,7 @@ function showAuraEffectOnPlayer(x, y, aura) {
             }, i * 10);
         }
     }
+    // ЛАВАНДОВАЯ (с туманом)
     else if(aura.id === 'lavender_aura') {
         effect.style.background = `radial-gradient(circle, #E6E6FA, #D8BFD8, transparent)`;
         effect.style.boxShadow = `0 0 40px #D8BFD8`;
@@ -3245,6 +3170,7 @@ function showAuraEffectOnPlayer(x, y, aura) {
             }, i * 15);
         }
     }
+    // РОЗОВАЯ (с туманом)
     else if(aura.id === 'rose_aura') {
         effect.style.background = `radial-gradient(circle, #FF69B4, #FF1493, transparent)`;
         effect.style.boxShadow = `0 0 40px #FF69B4`;
@@ -3266,6 +3192,7 @@ function showAuraEffectOnPlayer(x, y, aura) {
             }, i * 15);
         }
     }
+    // ВЕСЕННЯЯ (с туманом)
     else if(aura.id === 'spring_aura') {
         effect.style.background = `radial-gradient(circle, #00FA9A, #3CB371, transparent)`;
         effect.style.boxShadow = `0 0 40px #00FA9A`;
@@ -3287,6 +3214,7 @@ function showAuraEffectOnPlayer(x, y, aura) {
             }, i * 10);
         }
     }
+    // ОСТАЛЬНЫЕ АУРЫ
     else {
         effect.style.background = `radial-gradient(circle, ${aura.effectColor}, transparent)`;
         effect.style.boxShadow = `0 0 40px ${aura.color}`;
@@ -3311,7 +3239,6 @@ function gameLoop(){
     updateCoins();
     updateKeys();
     updatePowerUps();
-    updateArrows();
     decayCombo();
     checkEnemyCollisions();
     checkCheckpoints();
@@ -3346,7 +3273,6 @@ function gameLoop(){
     drawKeys();
     drawCoins();
     drawPowerUps();
-    drawArrows();
     drawParticles();
     player.draw(ctx,cameraX);
     drawGoal();
@@ -3486,59 +3412,122 @@ function performMelee(){
 }
 
 function changeBiom() {
-    if (!biomLoaded && biomLoadingStarted) return;
+    // Если биомы ещё загружаются — пробуем выбрать из уже загруженных
+    if (!biomLoaded) {
+        // Проверяем, есть ли хоть один загруженный биом
+        let loadedBiom = null;
+        for (let i = 0; i < biomImages.length; i++) {
+            if (biomImages[i] !== null && biomImages[i].complete && biomImages[i].naturalWidth > 0) {
+                loadedBiom = biomImages[i];
+                break;
+            }
+        }
+        if (loadedBiom) {
+            currentBiom = loadedBiom;
+            console.log('✅ Использован загруженный биом');
+        } else {
+            // Если нет — используем встроенный
+            const randomBiom = BUILTIN_BIOMS[Math.floor(Math.random() * BUILTIN_BIOMS.length)];
+            currentBiom = randomBiom;
+            console.log('🔄 Использован встроенный биом (загрузка ещё идёт)');
+        }
+        return;
+    }
+    
     const validIndices = [];
     for (let i = 0; i < biomImages.length; i++) {
-        if (biomImages[i] !== null && biomImages[i].complete && biomImages[i].naturalWidth > 0) validIndices.push(i);
+        if (biomImages[i] !== null && biomImages[i].complete && biomImages[i].naturalWidth > 0) {
+            validIndices.push(i);
+        }
     }
+    
     if (validIndices.length > 0) {
         const randomIndex = validIndices[Math.floor(Math.random() * validIndices.length)];
         currentBiom = biomImages[randomIndex];
+        console.log('✅ Случайный биом загружен');
     } else if (BUILTIN_BIOMS.length > 0) {
         const randomBiom = BUILTIN_BIOMS[Math.floor(Math.random() * BUILTIN_BIOMS.length)];
         currentBiom = randomBiom;
+        console.log('🔄 Использован встроенный биом');
     }
 }
 
 function startAsyncBiomLoading() {
     if (biomLoadingStarted) return;
     biomLoadingStarted = true;
+    
     const possibleFiles = [];
     for (let i = 1; i <= 50; i++) {
         possibleFiles.push(`bioms/biom${i}.png`);
         possibleFiles.push(`bioms/biom${i}.jpg`);
     }
+    
     const namedFiles = ['forest', 'cave', 'mountain', 'volcano', 'ice', 'swamp', 'jungle', 'ruins', 'temple', 'waterfall', 'cliffs', 'valley', 'desert', 'snow', 'lava', 'abyss', 'sky', 'ocean'];
     for (const name of namedFiles) {
         possibleFiles.push(`bioms/${name}.png`);
         possibleFiles.push(`bioms/${name}.jpg`);
         possibleFiles.push(`bioms/${name}.webp`);
     }
+    
     let loadedCount = 0;
     let totalToLoad = possibleFiles.length;
     biomImages = new Array(totalToLoad);
     biomFileNames = new Array(totalToLoad);
+    
     function checkComplete() {
         loadedCount++;
+        // Показываем прогресс в консоли только каждые 10%
+        if (loadedCount % Math.floor(totalToLoad / 10) === 0 || loadedCount === totalToLoad) {
+            const percent = Math.floor((loadedCount / totalToLoad) * 100);
+            console.log(`🌄 Загрузка биомов: ${percent}% (${loadedCount}/${totalToLoad})`);
+        }
+        
         if (loadedCount >= totalToLoad) {
             const validCount = biomFileNames.filter(f => f !== null).length;
-            console.log(`Загружено биомов: ${validCount} шт.`);
+            console.log(`✅ Загружено биомов: ${validCount} шт. из ${totalToLoad}`);
             biomLoaded = true;
-            selectRandomBiom();
+            changeBiom();
         }
     }
+    
     possibleFiles.forEach((file, index) => {
         const img = new Image();
-        img.onload = () => { biomImages[index] = img; biomFileNames[index] = file; checkComplete(); };
-        img.onerror = () => { biomImages[index] = null; biomFileNames[index] = null; checkComplete(); };
+        img.onload = () => { 
+            biomImages[index] = img; 
+            biomFileNames[index] = file; 
+            checkComplete(); 
+        };
+        img.onerror = () => { 
+            biomImages[index] = null; 
+            biomFileNames[index] = null; 
+            checkComplete(); 
+        };
         img.src = file;
     });
+    
+    // Если загрузка затянулась — всё равно показываем биом через 5 секунд
+    setTimeout(() => {
+        if (!biomLoaded) {
+            console.warn('⚠️ Загрузка биомов затянулась, показываем встроенный');
+            const randomBiom = BUILTIN_BIOMS[Math.floor(Math.random() * BUILTIN_BIOMS.length)];
+            currentBiom = randomBiom;
+            // Если есть хоть один загруженный — используем его
+            for (let i = 0; i < biomImages.length; i++) {
+                if (biomImages[i] !== null && biomImages[i].complete && biomImages[i].naturalWidth > 0) {
+                    currentBiom = biomImages[i];
+                    break;
+                }
+            }
+        }
+    }, 5000);
 }
 
 function selectRandomBiom() {
     const validIndices = [];
     for (let i = 0; i < biomImages.length; i++) {
-        if (biomImages[i] !== null && biomImages[i].complete && biomImages[i].naturalWidth > 0) validIndices.push(i);
+        if (biomImages[i] !== null && biomImages[i].complete && biomImages[i].naturalWidth > 0) {
+            validIndices.push(i);
+        }
     }
     if (validIndices.length > 0) {
         const randomIndex = validIndices[Math.floor(Math.random() * validIndices.length)];
@@ -3573,10 +3562,8 @@ function handleKeyDown(e) {
         e.preventDefault();
         performMelee();
     }
-    if((e.key === 'f' || e.key === 'F' || e.key === 'c' || e.key === 'C')){
-        e.preventDefault();
-        shootArrow();
-    }
+    // СТРЕЛЬБА УБРАНА — F и C больше не стреляют
+    
     if((e.key === 'r' || e.key === 'R') && !gameRunning) restartGame();
 }
 
@@ -3614,11 +3601,9 @@ function setupMobileControls(){
             attackBtn.addEventListener('touchstart', (e) => { e.preventDefault(); performMelee(); });
             attackBtn.addEventListener('mousedown', () => performMelee());
         }
+        // Кнопка стрельбы скрыта
         const shootBtn = document.getElementById('btnShoot');
-        if(shootBtn) {
-            shootBtn.addEventListener('touchstart', (e) => { e.preventDefault(); shootArrow(); });
-            shootBtn.addEventListener('mousedown', () => { shootArrow(); });
-        }
+        if(shootBtn) shootBtn.style.display = 'none';
     }
 }
 
