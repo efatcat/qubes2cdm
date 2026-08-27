@@ -1,4 +1,4 @@
-// game.js - QUBES v2.3 - AURA FOG EFFECT RESTORED
+// game.js - QUBES v2.3 - NO CLASSES
 
 const CONFIG = {
     player: { width: 40, height: 40, speed: 6, jumpPower: 16, gravity: 0.8, friction: 0.85, dashSpeed: 20, dashDuration: 12, dashCooldown: 45, maxDashes: 2, doubleJump: true },
@@ -97,14 +97,6 @@ const ACCESSORIES = [
     { id: 'vortex_eyes', name: 'Глаза Вихря', description: 'Заменяет глаза на глаза врага Вихря' }
 ];
 
-const CLASSES = {
-    default: { name: 'Стандарт', maxHealth: 100, damage: 1, speed: 6, jumpCount: 2, gravity: 0.8, meleeRadius: 95, color: '#4af626', price: 0 },
-    warrior: { name: 'Воин', maxHealth: 150, damage: 1.5, speed: 5.5, jumpCount: 2, gravity: 0.85, meleeRadius: 95, color: '#ff4444', price: 200 },
-    archer: { name: 'Лучник', maxHealth: 100, damage: 1, speed: 6, jumpCount: 2, gravity: 0.8, meleeRadius: 95, color: '#44ff44', price: 55, description: 'Идеален для новичков!', hasArrows: true, arrowCooldown: 6, arrowDamage: 1.5 },
-    mage: { name: 'Маг', maxHealth: 100, damage: 1, speed: 5, jumpCount: 2, gravity: 0.75, meleeRadius: 117, color: '#4444ff', price: 150 },
-    rogue: { name: 'Разбойник', maxHealth: 70, damage: 1, speed: 8, jumpCount: 3, gravity: 0.8, meleeRadius: 95, color: '#aa44ff', price: 100 }
-};
-
 const PROMO_CODES = {
     'СТАРТ15': { type: 'keys', value: 15, oneTime: true, description: 'Стартовый бонус: +15 ключей' },
     'УТЫТЁФ2507': { type: 'trail', value: 'birthday_trail', expiresAt: JULY_26_2026, description: 'Спецтрейл к ДР автора (25 июля)' },
@@ -112,22 +104,7 @@ const PROMO_CODES = {
     'КОТОТРЕЙЛ1': { type: 'trail', value: 'cat_trail', description: 'Трейл с улыбающимся котом 😸' }
 };
 
-let currentClass = 'default';
-let unlockedClasses = JSON.parse(localStorage.getItem('kolblocks_classes')) || ['default'];
-let arrowCooldownTimer = 0;
-let arrowsList = [];
-let cardCount = parseInt(localStorage.getItem('kolblocks_cards')) || 0;
-
-let unlockedTrails = JSON.parse(localStorage.getItem('kolblocks_trails')) || [];
-let equippedTrail = localStorage.getItem('kolblocks_equipped_trail') || null;
-
-let unlockedAccessories = JSON.parse(localStorage.getItem('kolblocks_accessories')) || [];
-let equippedAccessory = localStorage.getItem('kolblocks_equipped_accessory') || null;
-
-let usedPromoCodes = JSON.parse(localStorage.getItem('kolblocks_used_promos')) || [];
-
-let playerNickname = localStorage.getItem('kolblocks_nickname') || '';
-
+// ==================== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ====================
 let playerELO = parseInt(localStorage.getItem('kolblocks_elo')) || 0;
 let totalKeys = parseInt(localStorage.getItem('kolblocks_keys')) || 0;
 let unlockedSkins = JSON.parse(localStorage.getItem('kolblocks_skins')) || ['default'];
@@ -141,8 +118,6 @@ let lastKaleidoscopeDate = null;
 let batidaoImage = null;
 let cucumberImage = null;
 let explosionGif = null;
-let auraImagesLoaded = false;
-
 let activeAuraEffect = null;
 let gameLoopId = null;
 let activeTimeouts = [];
@@ -178,6 +153,20 @@ let comboCount = 1, maxCombo = 1, comboTimer = 0, comboMultiplier = 1;
 let screenShake = 0, shakeIntensity = 0, lastCheckpointX = 0, boss = null, bossesDefeated = 0;
 let levelKeys = [];
 
+let cardCount = parseInt(localStorage.getItem('kolblocks_cards')) || 0;
+
+let unlockedTrails = JSON.parse(localStorage.getItem('kolblocks_trails')) || [];
+let equippedTrail = localStorage.getItem('kolblocks_equipped_trail') || null;
+
+let unlockedAccessories = JSON.parse(localStorage.getItem('kolblocks_accessories')) || [];
+let equippedAccessory = localStorage.getItem('kolblocks_equipped_accessory') || null;
+
+let usedPromoCodes = JSON.parse(localStorage.getItem('kolblocks_used_promos')) || [];
+let playerNickname = localStorage.getItem('kolblocks_nickname') || '';
+
+let arrowCooldownTimer = 0;
+let arrowsList = [];
+
 const platformTextures = [ {color: '#FF2E63', pattern: 'stripes'}, {color: '#08D9D6', pattern: 'dots'}, {color: '#FFDE7D', pattern: 'checker'}, {color: '#6A2C70', pattern: 'zigzag'}, {color: '#4ECDC4', pattern: 'bricks'}, {color: '#FF9A76', pattern: 'waves'} ];
 const enemyColors = ['#FF2E63', '#FFDE7D', '#6A2C70', '#08D9D6', '#AA00FF'];
 const flyingEnemyColors = ['#FF00FF', '#00FFFF', '#FFFF00', '#FF6600'];
@@ -193,7 +182,6 @@ function closeCurrentMenu() {
     
     const screens = [
         { id: 'caseShopScreen', close: closeShop },
-        { id: 'classShopScreen', close: closeClassShop },
         { id: 'cardCraftScreen', close: closeCardCraft },
         { id: 'promoCodeScreen', close: closePromoCode },
         { id: 'profileScreen', close: closeProfile },
@@ -240,7 +228,6 @@ function updateUI(){
     document.getElementById('scoreDisplay').textContent=score;
     document.getElementById('comboCount').textContent=`x${comboCount}`;
     document.getElementById('eloValue').textContent = Math.floor(playerELO);
-    document.getElementById('classDisplay').textContent = CLASSES[currentClass].name;
     document.getElementById('cardCountDisplay').textContent = cardCount;
 }
 function addScore(points){score+=Math.floor(points*comboMultiplier);updateUI();}
@@ -265,16 +252,6 @@ function getKaleidoscopeColor() {
     return lastKaleidoscopeColor;
 }
 
-function getEnemyMultiplier() {
-    switch(currentClass) {
-        case 'warrior': return 1.3;
-        case 'archer': return 1.3;
-        case 'mage': return 1.6;
-        case 'rogue': return 1.6;
-        default: return 1.0;
-    }
-}
-
 function saveAllData() {
     localStorage.setItem('kolblocks_elo', playerELO);
     localStorage.setItem('kolblocks_keys', totalKeys);
@@ -287,8 +264,6 @@ function saveAllData() {
     localStorage.setItem('kolblocks_equipped_aura', equippedAura || '');
     localStorage.setItem('kolblocks_equipped_trail', equippedTrail || '');
     localStorage.setItem('kolblocks_equipped_accessory', equippedAccessory || '');
-    localStorage.setItem('kolblocks_classes', JSON.stringify(unlockedClasses));
-    localStorage.setItem('kolblocks_current_class', currentClass);
     localStorage.setItem('kolblocks_used_promos', JSON.stringify(usedPromoCodes));
     localStorage.setItem('kolblocks_nickname', playerNickname);
 }
@@ -340,41 +315,10 @@ function getTrailData(id) {
     return all.find(t=>t.id===id) || null;
 }
 
-function canChangeClass() {
-    return currentLevel === 1 || playerHealth <= 0;
-}
-
-function applyClassStats() {
-    const classData = CLASSES[currentClass];
-    maxHealth = classData.maxHealth;
-    if (playerHealth > maxHealth) playerHealth = maxHealth;
-    updateHealthBar();
-    
-    if (player) {
-        player.speed = classData.speed;
-        player.jumpPower = CONFIG.player.jumpPower;
-        player.gravity = classData.gravity;
-        player.maxJumps = classData.jumpCount;
-        player.jumpCount = 0;
-        player.color = classData.color;
-    }
-    
-    if (classData.hasArrows) {
-        document.getElementById('arrowIndicator').style.display = 'flex';
-        document.getElementById('btnShoot').style.display = 'flex';
-    } else {
-        document.getElementById('arrowIndicator').style.display = 'none';
-        document.getElementById('btnShoot').style.display = 'none';
-    }
-    
-    updateUI();
-}
-
 function shootArrow() {
-    if (currentClass !== 'archer') return;
     if (arrowCooldownTimer > 0) return;
     
-    arrowCooldownTimer = CLASSES.archer.arrowCooldown;
+    arrowCooldownTimer = 6;
     
     const direction = player.dashDirection === -1 ? -1 : 1;
     const startX = player.x + player.width/2 + (direction === 1 ? 28 : -28);
@@ -389,7 +333,7 @@ function shootArrow() {
         vx: direction * 16,
         vy: 0,
         active: true,
-        damage: CLASSES.archer.arrowDamage,
+        damage: 1.5,
         color: arrowColor
     });
     
@@ -597,7 +541,6 @@ class Player {
     constructor() { this.reset(); }
     
     reset() {
-        const classData = CLASSES[currentClass];
         this.width = CONFIG.player.width;
         this.height = CONFIG.player.height;
         this.x = 100;
@@ -606,11 +549,11 @@ class Player {
         this.velY = 0;
         this.jumping = false;
         this.jumpCount = 0;
-        this.maxJumps = classData.jumpCount;
-        this.color = classData.color;
-        this.speed = classData.speed;
+        this.maxJumps = 2;
+        this.color = '#4af626';
+        this.speed = CONFIG.player.speed;
         this.jumpPower = CONFIG.player.jumpPower;
-        this.gravity = classData.gravity;
+        this.gravity = CONFIG.player.gravity;
         this.friction = CONFIG.player.friction;
         this.trail = [];
         this.maxTrail = 8;
@@ -742,15 +685,14 @@ class Player {
     meleeAttack() {
         if (this.meleeCooldown > 0 || !gameRunning) return;
         
-        const classData = CLASSES[currentClass];
         this.meleeCooldown = CONFIG.melee.cooldownMax;
         this.swingEffect = 8;
         AudioSys.meleeSwing();
         
         const centerX = this.x + this.width/2;
         const centerY = this.y + this.height/2;
-        const radius = classData.meleeRadius;
-        const damage = classData.damage;
+        const radius = CONFIG.melee.radius;
+        const damage = CONFIG.melee.damage;
         
         if (equippedAura) {
             const aura = getAuraData(equippedAura);
@@ -1285,11 +1227,11 @@ class Player {
         
         if (this.swingEffect > 0) {
             ctx.beginPath();
-            ctx.arc(drawX + this.width/2, this.y + this.height/2, CLASSES[currentClass].meleeRadius, 0, Math.PI * 2);
+            ctx.arc(drawX + this.width/2, this.y + this.height/2, CONFIG.melee.radius, 0, Math.PI * 2);
             ctx.fillStyle = `rgba(255, 80, 40, ${0.3 * (this.swingEffect / 8)})`;
             ctx.fill();
             ctx.beginPath();
-            ctx.arc(drawX + this.width/2, this.y + this.height/2, CLASSES[currentClass].meleeRadius - 10, 0, Math.PI * 2);
+            ctx.arc(drawX + this.width/2, this.y + this.height/2, CONFIG.melee.radius - 10, 0, Math.PI * 2);
             ctx.fillStyle = `rgba(255, 200, 0, 0.5)`;
             ctx.fill();
         }
@@ -2140,11 +2082,9 @@ function generateLevel(level){
     roundCoins=0; roundDamage=0; 
     const minHeight=100,maxHeight=canvas.height-150; 
     
-    const enemyMultiplier = getEnemyMultiplier();
     const platformCount = CONFIG.level.basePlatforms + Math.floor(level * CONFIG.level.platformGrowth); 
-    const baseEnemyCount = CONFIG.level.baseEnemies + Math.floor(level * CONFIG.level.enemyGrowth);
-    const enemyCount = Math.floor(baseEnemyCount * enemyMultiplier);
-    const flyingEnemyCount = Math.max(0, Math.floor(level / 3 * enemyMultiplier));
+    const enemyCount = CONFIG.level.baseEnemies + Math.floor(level * CONFIG.level.enemyGrowth);
+    const flyingEnemyCount = Math.max(0, Math.floor(level / 3));
     
     levelWidth = CONFIG.level.baseWidth + (level - 1) * CONFIG.level.widthGrowth; 
     platforms.push(new Platform(80, canvas.height - 200, 180, 0)); 
@@ -3011,7 +2951,7 @@ function openProfile() {
     
     document.getElementById('profileKeys').textContent = totalKeys;
     document.getElementById('profileElo').textContent = Math.floor(playerELO);
-    document.getElementById('profileClass').textContent = CLASSES[currentClass].name;
+    document.getElementById('profileClass').textContent = 'Нет (стандарт)';
     
     const skinData = getSkinData(equippedSkin);
     document.getElementById('profileSkin').textContent = skinData ? skinData.name : 'Стандарт';
@@ -3107,109 +3047,6 @@ function showResult(title, text, col) {
 
 function hideResult() { const r = document.getElementById('chestResult'); if(r) r.style.display = 'none'; }
 
-function openClassShop() {
-    clearKeys();
-    gameRunning = false;
-    if (gameLoopId) cancelAnimationFrame(gameLoopId);
-    document.getElementById('pauseMenu').style.display = 'none';
-    document.getElementById('classShopScreen').style.display = 'flex';
-    document.getElementById('classShopKeyCount').textContent = totalKeys;
-    document.getElementById('currentClassDisplay').textContent = CLASSES[currentClass].name;
-    updateCardDisplay();
-    
-    const warning = document.getElementById('classSwitchWarning');
-    const canChange = canChangeClass();
-    if (warning) {
-        warning.style.display = canChange ? 'none' : 'block';
-    }
-    
-    const defaultBtn = document.getElementById('selectDefaultBtn');
-    if (defaultBtn) {
-        defaultBtn.textContent = currentClass === 'default' ? '✓ ВКЛ' : 'ВКЛ';
-        defaultBtn.disabled = !canChange && currentClass !== 'default';
-    }
-    
-    for (const [id, data] of Object.entries(CLASSES)) {
-        if (id !== 'default') {
-            const btn = document.getElementById(`buy${id.charAt(0).toUpperCase() + id.slice(1)}Btn`);
-            if (btn) {
-                if (unlockedClasses.includes(id)) {
-                    btn.textContent = currentClass === id ? '✓ ВКЛ' : 'ВКЛ';
-                    btn.disabled = !canChange || currentClass === id;
-                } else {
-                    btn.textContent = `КУПИТЬ (${data.price} 🔑)`;
-                    btn.disabled = totalKeys < data.price || !canChange;
-                }
-            }
-        }
-    }
-}
-
-function closeClassShop() {
-    document.getElementById('classShopScreen').style.display = 'none';
-    clearKeys();
-    gameRunning = true;
-    if (gameLoopId) cancelAnimationFrame(gameLoopId);
-    gameLoop();
-}
-
-function selectClass(className) {
-    if (!canChangeClass() && currentClass !== className) {
-        alert('⚠️ Смена класса доступна только на 1 уровне или после смерти!');
-        return;
-    }
-    if (unlockedClasses.includes(className)) {
-        currentClass = className;
-        localStorage.setItem('kolblocks_current_class', currentClass);
-        applyClassStats();
-        closeClassShop();
-    }
-}
-
-function buyClass(className) {
-    if (!canChangeClass()) {
-        alert('⚠️ Смена класса доступна только на 1 уровне или после смерти!');
-        return;
-    }
-    if (unlockedClasses.includes(className)) {
-        currentClass = className;
-        localStorage.setItem('kolblocks_current_class', currentClass);
-        applyClassStats();
-        closeClassShop();
-        return;
-    }
-    
-    const classData = CLASSES[className];
-    if (totalKeys >= classData.price) {
-        totalKeys -= classData.price;
-        unlockedClasses.push(className);
-        currentClass = className;
-        saveAllData();
-        applyClassStats();
-        
-        const msg = document.createElement('div');
-        msg.textContent = `✨ КЛАСС ${classData.name} РАЗБЛОКИРОВАН! ✨`;
-        msg.style.position = 'fixed';
-        msg.style.top = '50%';
-        msg.style.left = '50%';
-        msg.style.transform = 'translate(-50%, -50%)';
-        msg.style.color = classData.color;
-        msg.style.fontSize = '24px';
-        msg.style.fontWeight = 'bold';
-        msg.style.backgroundColor = 'rgba(0,0,0,0.8)';
-        msg.style.padding = '15px 30px';
-        msg.style.borderRadius = '15px';
-        msg.style.border = `2px solid ${classData.color}`;
-        msg.style.zIndex = '1000';
-        document.body.appendChild(msg);
-        safeTimeout(() => msg.remove(), 2000);
-        
-        closeClassShop();
-    } else {
-        alert(`Недостаточно ключей! Нужно ${classData.price} 🔑`);
-    }
-}
-
 // ==================== ЗАГРУЗКА КАРТИНОК ДЛЯ АУР ====================
 function loadAuraImages() {
     let loadedCount = 0;
@@ -3218,48 +3055,26 @@ function loadAuraImages() {
     function checkAllLoaded() {
         loadedCount++;
         if (loadedCount >= totalToLoad) {
-            auraImagesLoaded = true;
             console.log('✅ Все картинки аур загружены');
         }
     }
     
     cucumberImage = new Image();
     cucumberImage.crossOrigin = 'anonymous';
-    cucumberImage.onload = () => {
-        console.log('✅ Огурец загружен');
-        checkAllLoaded();
-    };
-    cucumberImage.onerror = () => {
-        console.error('❌ Не удалось загрузить огурец');
-        cucumberImage = null;
-        checkAllLoaded();
-    };
+    cucumberImage.onload = () => { console.log('✅ Огурец загружен'); checkAllLoaded(); };
+    cucumberImage.onerror = () => { console.error('❌ Не удалось загрузить огурец'); cucumberImage = null; checkAllLoaded(); };
     cucumberImage.src = 'ogurec.webp';
     
     batidaoImage = new Image();
     batidaoImage.crossOrigin = 'anonymous';
-    batidaoImage.onload = () => {
-        console.log('✅ Батидао загружен');
-        checkAllLoaded();
-    };
-    batidaoImage.onerror = () => {
-        console.error('❌ Не удалось загрузить батидао');
-        batidaoImage = null;
-        checkAllLoaded();
-    };
+    batidaoImage.onload = () => { console.log('✅ Батидао загружен'); checkAllLoaded(); };
+    batidaoImage.onerror = () => { console.error('❌ Не удалось загрузить батидао'); batidaoImage = null; checkAllLoaded(); };
     batidaoImage.src = 'batidao.png';
     
     explosionGif = new Image();
     explosionGif.crossOrigin = 'anonymous';
-    explosionGif.onload = () => {
-        console.log('✅ Взрыв загружен');
-        checkAllLoaded();
-    };
-    explosionGif.onerror = () => {
-        console.error('❌ Не удалось загрузить взрыв');
-        explosionGif = null;
-        checkAllLoaded();
-    };
+    explosionGif.onload = () => { console.log('✅ Взрыв загружен'); checkAllLoaded(); };
+    explosionGif.onerror = () => { console.error('❌ Не удалось загрузить взрыв'); explosionGif = null; checkAllLoaded(); };
     explosionGif.src = 'vzryv.gif';
 }
 
@@ -3281,7 +3096,6 @@ function showAuraEffectOnPlayer(x, y, aura) {
     effect.style.width = '300px';
     effect.style.height = '300px';
     
-    // ==================== БАТИДАО ====================
     if(aura.id === 'batidao_aura') {
         effect.style.background = `radial-gradient(circle, ${aura.effectColor} 0%, transparent 70%)`;
         if(batidaoImage) {
@@ -3292,7 +3106,6 @@ function showAuraEffectOnPlayer(x, y, aura) {
         }
         effect.style.boxShadow = `0 0 50px ${aura.color}, 0 0 100px ${aura.color}`;
         effect.style.animation = 'batidaoAuraPlayer 0.5s ease-out forwards';
-        
         for (let i = 0; i < 30; i++) {
             safeTimeout(() => {
                 const particle = document.createElement('div');
@@ -3311,7 +3124,6 @@ function showAuraEffectOnPlayer(x, y, aura) {
             }, i * 10);
         }
     }
-    // ==================== ВЗРЫВ ====================
     else if(aura.id === 'explosion_aura' && explosionGif) {
         effect.style.background = `radial-gradient(circle, #ff0000, #ff6600, #ffff00, transparent)`;
         effect.style.backgroundImage = `url(${explosionGif.src})`;
@@ -3324,7 +3136,6 @@ function showAuraEffectOnPlayer(x, y, aura) {
         effect.style.height = '400px';
         effect.style.left = (x - 200) + 'px';
         effect.style.top = (y - 200) + 'px';
-        
         for (let i = 0; i < 50; i++) {
             safeTimeout(() => {
                 const particle = document.createElement('div');
@@ -3343,7 +3154,6 @@ function showAuraEffectOnPlayer(x, y, aura) {
             }, i * 8);
         }
     }
-    // ==================== ОГУРЕЦ ====================
     else if(aura.id === 'cucumber_aura' && cucumberImage) {
         effect.style.background = `radial-gradient(circle, ${aura.effectColor} 0%, transparent 70%)`;
         effect.style.backgroundImage = `url(${cucumberImage.src})`;
@@ -3352,7 +3162,6 @@ function showAuraEffectOnPlayer(x, y, aura) {
         effect.style.backgroundBlend = 'overlay';
         effect.style.boxShadow = `0 0 50px ${aura.color}, 0 0 80px ${aura.color}`;
         effect.style.animation = 'cucumberAuraPlayer 0.5s ease-out forwards';
-        
         for (let i = 0; i < 25; i++) {
             safeTimeout(() => {
                 const particle = document.createElement('div');
@@ -3371,12 +3180,10 @@ function showAuraEffectOnPlayer(x, y, aura) {
             }, i * 12);
         }
     }
-    // ==================== ПОДСОЛНЕЧНАЯ ====================
     else if(aura.id === 'sunflower_aura') {
         effect.style.background = `radial-gradient(circle, ${aura.effectColor} 0%, #FFD700 30%, transparent 70%)`;
         effect.style.boxShadow = `0 0 50px ${aura.color}, 0 0 80px #FFA500`;
         effect.style.animation = 'sunflowerAuraPlayer 0.5s ease-out forwards';
-        
         for (let i = 0; i < 20; i++) {
             const angle = (i / 20) * Math.PI * 2;
             safeTimeout(() => {
@@ -3396,12 +3203,10 @@ function showAuraEffectOnPlayer(x, y, aura) {
             }, i * 15);
         }
     }
-    // ==================== ВИШНЁВАЯ (с туманом) ====================
     else if(aura.id === 'cherry_aura') {
         effect.style.background = `radial-gradient(circle, #ff3366, #ff6699, transparent)`;
         effect.style.boxShadow = `0 0 40px #ff3366`;
         effect.style.animation = 'cherryAuraPlayer 0.4s ease-out forwards';
-        
         for (let i = 0; i < 20; i++) {
             safeTimeout(() => {
                 const particle = document.createElement('div');
@@ -3419,12 +3224,10 @@ function showAuraEffectOnPlayer(x, y, aura) {
             }, i * 10);
         }
     }
-    // ==================== ЛАВАНДОВАЯ (с туманом) ====================
     else if(aura.id === 'lavender_aura') {
         effect.style.background = `radial-gradient(circle, #E6E6FA, #D8BFD8, transparent)`;
         effect.style.boxShadow = `0 0 40px #D8BFD8`;
         effect.style.animation = 'auraExpandPlayer 0.4s ease-out forwards';
-        
         for (let i = 0; i < 15; i++) {
             safeTimeout(() => {
                 const particle = document.createElement('div');
@@ -3442,12 +3245,10 @@ function showAuraEffectOnPlayer(x, y, aura) {
             }, i * 15);
         }
     }
-    // ==================== РОЗОВАЯ (с туманом) ====================
     else if(aura.id === 'rose_aura') {
         effect.style.background = `radial-gradient(circle, #FF69B4, #FF1493, transparent)`;
         effect.style.boxShadow = `0 0 40px #FF69B4`;
         effect.style.animation = 'auraExpandPlayer 0.4s ease-out forwards';
-        
         for (let i = 0; i < 15; i++) {
             safeTimeout(() => {
                 const particle = document.createElement('div');
@@ -3465,12 +3266,10 @@ function showAuraEffectOnPlayer(x, y, aura) {
             }, i * 15);
         }
     }
-    // ==================== ВЕСЕННЯЯ (с туманом) ====================
     else if(aura.id === 'spring_aura') {
         effect.style.background = `radial-gradient(circle, #00FA9A, #3CB371, transparent)`;
         effect.style.boxShadow = `0 0 40px #00FA9A`;
         effect.style.animation = 'auraExpandPlayer 0.4s ease-out forwards';
-        
         for (let i = 0; i < 25; i++) {
             safeTimeout(() => {
                 const particle = document.createElement('div');
@@ -3488,7 +3287,6 @@ function showAuraEffectOnPlayer(x, y, aura) {
             }, i * 10);
         }
     }
-    // ==================== ОСТАЛЬНЫЕ АУРЫ (с туманом) ====================
     else {
         effect.style.background = `radial-gradient(circle, ${aura.effectColor}, transparent)`;
         effect.style.boxShadow = `0 0 40px ${aura.color}`;
@@ -3497,13 +3295,7 @@ function showAuraEffectOnPlayer(x, y, aura) {
     
     document.body.appendChild(effect);
     activeAuraEffect = effect;
-    
-    safeTimeout(() => { 
-        if(activeAuraEffect) { 
-            activeAuraEffect.remove(); 
-            activeAuraEffect = null; 
-        } 
-    }, 500);
+    safeTimeout(() => { if(activeAuraEffect) { activeAuraEffect.remove(); activeAuraEffect = null; } }, 500);
 }
 
 function gameLoop(){
@@ -3596,7 +3388,6 @@ function completeLevel(){
         currentLevel++;
         generateLevel(currentLevel);
         player.reset();
-        applyClassStats();
         playerHealth = maxHealth;
         updateHealthBar();
         cameraX=0;
@@ -3607,7 +3398,6 @@ function completeLevel(){
         updateUI();
         updateDashIndicator();
         updateEloDisplay();
-        
         inputBlocked = false;
         gameRunning=true;
         gameLoop();
@@ -3650,8 +3440,6 @@ function restartGame(){
     if(pmDiv) pmDiv.style.display='none';
     const csDiv = document.getElementById('caseShopScreen');
     if(csDiv) csDiv.style.display='none';
-    const classDiv = document.getElementById('classShopScreen');
-    if(classDiv) classDiv.style.display='none';
     const craftDiv = document.getElementById('cardCraftScreen');
     if(craftDiv) craftDiv.style.display='none';
     const lcDiv = document.getElementById('levelComplete');
@@ -3661,7 +3449,6 @@ function restartGame(){
     roundCoins=0;roundDamage=0;
     generateLevel(currentLevel);
     player = new Player();
-    applyClassStats();
     cameraX=0;
     updateUI();
     updateHealthBar();
@@ -3768,14 +3555,12 @@ function handleKeyDown(e) {
     
     if(e.key === 'p' || e.key === 'P' || e.key === 'Escape'){
         e.preventDefault();
-        
         const levelComplete = document.getElementById('levelComplete');
         const gameOverScreen = document.getElementById('gameOver');
         if ((levelComplete && levelComplete.style.display === 'flex') || 
             (gameOverScreen && gameOverScreen.style.display === 'flex')) {
             return;
         }
-        
         if (!closeCurrentMenu()) {
             showPauseMenu();
         }
@@ -3788,7 +3573,7 @@ function handleKeyDown(e) {
         e.preventDefault();
         performMelee();
     }
-    if((e.key === 'f' || e.key === 'F' || e.key === 'c' || e.key === 'C') && currentClass === 'archer'){
+    if((e.key === 'f' || e.key === 'F' || e.key === 'c' || e.key === 'C')){
         e.preventDefault();
         shootArrow();
     }
@@ -3831,8 +3616,8 @@ function setupMobileControls(){
         }
         const shootBtn = document.getElementById('btnShoot');
         if(shootBtn) {
-            shootBtn.addEventListener('touchstart', (e) => { e.preventDefault(); if(currentClass === 'archer') shootArrow(); });
-            shootBtn.addEventListener('mousedown', () => { if(currentClass === 'archer') shootArrow(); });
+            shootBtn.addEventListener('touchstart', (e) => { e.preventDefault(); shootArrow(); });
+            shootBtn.addEventListener('mousedown', () => { shootArrow(); });
         }
     }
 }
@@ -3889,23 +3674,17 @@ function installMod() {
                         alert('❌ Ошибка: неверное кодовое слово!\nМод не будет установлен.');
                         return;
                     }
-                    
                     const exists = installedMods.some(m => m.name === modData.name);
                     if (exists) {
                         alert('❌ Мод с таким названием уже установлен!');
                         return;
                     }
-                    
                     modData.id = Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
                     modData.enabled = true;
                     installedMods.push(modData);
                     saveMods();
                     renderModsList();
-                    
-                    if (modData.enabled) {
-                        applyMod(modData);
-                    }
-                    
+                    if (modData.enabled) applyMod(modData);
                     showModMessage('✅ Мод "' + modData.name + '" успешно установлен!');
                 }
             } catch (err) {
@@ -3921,35 +3700,18 @@ function installMod() {
 
 function parseModFile(content) {
     const lines = content.split('\n');
-    const mod = {
-        avatar: '',
-        name: 'Без названия',
-        author: 'Неизвестен',
-        codeword: '',
-        code: ''
-    };
-    
+    const mod = { avatar: '', name: 'Без названия', author: 'Неизвестен', codeword: '', code: '' };
     let codeStart = false;
     let codeLines = [];
-    
     for (let line of lines) {
         line = line.trim();
-        
-        if (line.startsWith('AVATAR:')) {
-            mod.avatar = line.substring(7).trim();
-        } else if (line.startsWith('NAME:')) {
-            mod.name = line.substring(5).trim();
-        } else if (line.startsWith('AUTHOR:')) {
-            mod.author = line.substring(7).trim();
-        } else if (line.startsWith('CODEWORD:')) {
-            mod.codeword = line.substring(9).trim();
-        } else if (line === '// Код мода (JavaScript)' || line === '// КОД МОДА') {
-            codeStart = true;
-        } else if (codeStart) {
-            codeLines.push(line);
-        }
+        if (line.startsWith('AVATAR:')) mod.avatar = line.substring(7).trim();
+        else if (line.startsWith('NAME:')) mod.name = line.substring(5).trim();
+        else if (line.startsWith('AUTHOR:')) mod.author = line.substring(7).trim();
+        else if (line.startsWith('CODEWORD:')) mod.codeword = line.substring(9).trim();
+        else if (line === '// Код мода (JavaScript)' || line === '// КОД МОДА') codeStart = true;
+        else if (codeStart) codeLines.push(line);
     }
-    
     if (codeLines.length === 0) {
         let found = false;
         for (let line of lines) {
@@ -3960,26 +3722,21 @@ function parseModFile(content) {
                     codeLines.push(line);
                 }
             }
-            if (line.startsWith('CODEWORD:')) {
-                found = true;
-            }
+            if (line.startsWith('CODEWORD:')) found = true;
         }
     }
-    
     mod.code = codeLines.join('\n');
-    
     if (!mod.codeword) {
         alert('❌ Ошибка: в файле отсутствует CODEWORD!');
         return null;
     }
-    
     return mod;
 }
 
 function applyMod(modData) {
     try {
-        const fn = new Function('CONFIG', 'CLASSES', modData.code);
-        fn(CONFIG, CLASSES);
+        const fn = new Function('CONFIG', modData.code);
+        fn(CONFIG);
         console.log('✅ Мод "' + modData.name + '" применён!');
     } catch (err) {
         console.error('❌ Ошибка при применении мода:', err);
@@ -3990,11 +3747,9 @@ function applyMod(modData) {
 function toggleMod(id) {
     const mod = installedMods.find(m => m.id === id);
     if (!mod) return;
-    
     mod.enabled = !mod.enabled;
     saveMods();
     renderModsList();
-    
     if (mod.enabled) {
         applyMod(mod);
         showModMessage('✅ Мод "' + mod.name + '" включён!');
@@ -4008,7 +3763,6 @@ function toggleMod(id) {
 
 function deleteMod(id) {
     if (!confirm('Удалить этот мод?')) return;
-    
     const mod = installedMods.find(m => m.id === id);
     installedMods = installedMods.filter(m => m.id !== id);
     saveMods();
@@ -4023,22 +3777,17 @@ function saveMods() {
 function renderModsList() {
     const container = document.getElementById('modsList');
     const countSpan = document.getElementById('modsCount');
-    
     if (!container) return;
-    
     if (installedMods.length === 0) {
         container.innerHTML = '<div style="color:#888; text-align:center; padding:20px;">Нет установленных модов</div>';
         if (countSpan) countSpan.textContent = '0';
         return;
     }
-    
     if (countSpan) countSpan.textContent = installedMods.length;
-    
     container.innerHTML = '';
     installedMods.forEach(mod => {
         const div = document.createElement('div');
         div.className = 'mod-item' + (mod.enabled ? ' active' : '');
-        
         const avatarImg = document.createElement('img');
         avatarImg.className = 'mod-avatar';
         avatarImg.src = mod.avatar || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="0 0 50 50"%3E%3Crect width="50" height="50" fill="%23333"/%3E%3Ctext x="25" y="30" font-size="20" text-anchor="middle" fill="%23666"%3E📦%3C/text%3E%3C/svg%3E';
@@ -4046,37 +3795,22 @@ function renderModsList() {
             this.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="0 0 50 50"%3E%3Crect width="50" height="50" fill="%23333"/%3E%3Ctext x="25" y="30" font-size="20" text-anchor="middle" fill="%23666"%3E📦%3C/text%3E%3C/svg%3E';
         };
         div.appendChild(avatarImg);
-        
         const info = document.createElement('div');
         info.className = 'mod-info';
-        info.innerHTML = `
-            <div class="mod-name">${mod.name}</div>
-            <div class="mod-author">👤 ${mod.author}</div>
-            <div class="mod-status">${mod.enabled ? '🟢 Включён' : '🔴 Выключен'}</div>
-        `;
+        info.innerHTML = `<div class="mod-name">${mod.name}</div><div class="mod-author">👤 ${mod.author}</div><div class="mod-status">${mod.enabled ? '🟢 Включён' : '🔴 Выключен'}</div>`;
         div.appendChild(info);
-        
         const actions = document.createElement('div');
         actions.className = 'mod-actions';
-        
         const toggleBtn = document.createElement('button');
         toggleBtn.className = 'mod-btn toggle' + (mod.enabled ? '' : ' off');
         toggleBtn.textContent = mod.enabled ? 'ВКЛ' : 'ВЫКЛ';
-        toggleBtn.onclick = function(e) {
-            e.stopPropagation();
-            toggleMod(mod.id);
-        };
+        toggleBtn.onclick = function(e) { e.stopPropagation(); toggleMod(mod.id); };
         actions.appendChild(toggleBtn);
-        
         const deleteBtn = document.createElement('button');
         deleteBtn.className = 'mod-btn delete';
         deleteBtn.textContent = '✕';
-        deleteBtn.onclick = function(e) {
-            e.stopPropagation();
-            deleteMod(mod.id);
-        };
+        deleteBtn.onclick = function(e) { e.stopPropagation(); deleteMod(mod.id); };
         actions.appendChild(deleteBtn);
-        
         div.appendChild(actions);
         container.appendChild(div);
     });
@@ -4107,11 +3841,8 @@ function showModMessage(text) {
 function showMobileWarning() {
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
                      ('ontouchstart' in window && window.innerWidth <= 1024);
-    
     if (!isMobile) return;
-    
     if (localStorage.getItem('kolblocks_mobile_warning_shown')) return;
-    
     const overlay = document.createElement('div');
     overlay.id = 'mobileWarningOverlay';
     overlay.style.cssText = `
@@ -4128,7 +3859,6 @@ function showMobileWarning() {
         backdrop-filter: blur(10px);
         font-family: 'Unbounded', monospace;
     `;
-    
     const content = document.createElement('div');
     content.style.cssText = `
         background: rgba(26, 26, 46, 0.98);
@@ -4140,7 +3870,6 @@ function showMobileWarning() {
         border: 2px solid #ff6b6b;
         box-shadow: 0 0 30px rgba(255, 107, 107, 0.3);
     `;
-    
     content.innerHTML = `
         <div style="font-size: 64px; margin-bottom: 15px;">📱</div>
         <h2 style="color: #ff6b6b; font-size: 24px; margin-bottom: 15px; font-family: 'Unbounded', monospace;">
@@ -4172,10 +3901,8 @@ function showMobileWarning() {
             letter-spacing: 1px;
         ">ПОНЯТНО, ИГРАТЬ</button>
     `;
-    
     overlay.appendChild(content);
     document.body.appendChild(overlay);
-    
     document.getElementById('mobileWarningBtn').addEventListener('click', () => {
         overlay.style.opacity = '0';
         overlay.style.transition = 'opacity 0.3s';
@@ -4195,19 +3922,12 @@ async function initGame(){
     cardCount = parseInt(localStorage.getItem('kolblocks_cards')) || 0;
     updateCardDisplay();
     
-    const savedClass = localStorage.getItem('kolblocks_current_class');
-    if (savedClass && unlockedClasses.includes(savedClass)) {
-        currentClass = savedClass;
-    } else {
-        currentClass = 'default';
-    }
-    
     installedMods = JSON.parse(localStorage.getItem('kolblocks_mods')) || [];
     for (const mod of installedMods) {
         if (mod.enabled) {
             try {
-                const fn = new Function('CONFIG', 'CLASSES', mod.code);
-                fn(CONFIG, CLASSES);
+                const fn = new Function('CONFIG', mod.code);
+                fn(CONFIG);
             } catch (err) {
                 console.error('Ошибка при загрузке мода "' + mod.name + '":', err);
             }
@@ -4235,7 +3955,6 @@ async function initGame(){
     }, 100);
     generateLevel(currentLevel);
     player = new Player();
-    applyClassStats();
     updateUI();
     updateHealthBar();
     updateDashIndicator();
@@ -4253,7 +3972,6 @@ window.addEventListener('resize', () => {
     if(gameRunning){ 
         generateLevel(currentLevel); 
         if(player) player.reset(); 
-        applyClassStats(); 
         cameraX = 0; 
     } 
 });
