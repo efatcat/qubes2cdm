@@ -1,4 +1,4 @@
-// game.js - QUBES v2.3 - FULL OPTIMIZED WITH CACHE - COMPLETE FILE
+// game.js - QUBES v2.3 - FULL OPTIMIZED WITH CACHE - FIXED EQUIP BUTTONS
 
 const CONFIG = {
     player: { width: 40, height: 40, speed: 6, jumpPower: 16, gravity: 0.8, friction: 0.85, dashSpeed: 20, dashDuration: 12, dashCooldown: 45, maxDashes: 2, doubleJump: true },
@@ -2549,10 +2549,16 @@ function renderAccessories() {
     g._cached = cacheKey;
 }
 
+// ==================== ИСПРАВЛЕННЫЕ ФУНКЦИИ СМЕНЫ СКИНОВ/АУР ====================
 function equipSkin(id) {
     if (unlockedSkins.includes(id)) { 
         equippedSkin = id; 
         saveAllData(); 
+        // Принудительно сбрасываем кэш отрисовки
+        const g = document.getElementById('skinsGrid');
+        if (g) g._cached = null;
+        const g2 = document.getElementById('paidSkinsGrid');
+        if (g2) g2._cached = null;
         renderSkins();
         renderPaidSkins();
     }
@@ -2562,6 +2568,9 @@ function equipAura(id) {
     if (unlockedAuras.includes(id)) { 
         equippedAura = equippedAura === id ? null : id; 
         saveAllData(); 
+        // Принудительно сбрасываем кэш отрисовки
+        const g = document.getElementById('aurasGrid');
+        if (g) g._cached = null;
         renderAuras(); 
     }
 }
@@ -2570,11 +2579,17 @@ function equipTrail(id) {
     if (unlockedTrails.includes(id)) {
         equippedTrail = id;
         saveAllData();
+        // Принудительно сбрасываем кэш отрисовки
+        const g = document.getElementById('trailsGrid');
+        if (g) g._cached = null;
+        const g2 = document.getElementById('paidTrailsGrid');
+        if (g2) g2._cached = null;
         renderTrails();
         renderPaidTrails();
         updateUnequipButtons();
         const trailData = getTrailData(equippedTrail);
-        document.getElementById('currentTrailDisplay').textContent = trailData ? trailData.name : 'Нет';
+        const display = document.getElementById('currentTrailDisplay');
+        if (display) display.textContent = trailData ? trailData.name : 'Нет';
     }
 }
 
@@ -2582,11 +2597,15 @@ function equipAccessory(id) {
     if (unlockedAccessories.includes(id)) {
         equippedAccessory = id;
         saveAllData();
+        // Принудительно сбрасываем кэш отрисовки
+        const g = document.getElementById('accessoriesGrid');
+        if (g) g._cached = null;
         renderAccessories();
         updateUnequipButtons();
     }
 }
 
+// ==================== ОСТАЛЬНЫЕ ФУНКЦИИ МАГАЗИНА ====================
 function openChest() {
     if (totalKeys < 10) { alert('Нужно минимум 10 ключей!'); return; }
     totalKeys -= 10; saveAllData(); 
