@@ -1,4 +1,4 @@
-// game.js - QUBES v2.3 - NO CLASSES, NO SHOOTING, FIXED BIOMS & AURA IMAGES
+// game.js - QUBES v2.3 - FULL OPTIMIZED WITH CACHE - COMPLETE FILE
 
 const CONFIG = {
     player: { width: 40, height: 40, speed: 6, jumpPower: 16, gravity: 0.8, friction: 0.85, dashSpeed: 20, dashDuration: 12, dashCooldown: 45, maxDashes: 2, doubleJump: true },
@@ -107,10 +107,28 @@ const PROMO_CODES = {
 // ==================== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ====================
 let playerELO = parseInt(localStorage.getItem('kolblocks_elo')) || 0;
 let totalKeys = parseInt(localStorage.getItem('kolblocks_keys')) || 0;
-let unlockedSkins = JSON.parse(localStorage.getItem('kolblocks_skins')) || ['default'];
-let unlockedAuras = JSON.parse(localStorage.getItem('kolblocks_auras')) || [];
+let cardCount = parseInt(localStorage.getItem('kolblocks_cards')) || 0;
+
+// КЭШИРОВАННЫЕ ДАННЫЕ
+const DATA_CACHE = {
+    skins: null,
+    auras: null,
+    trails: null,
+    accessories: null,
+    loaded: false
+};
+
+let unlockedSkins = ['default'];
+let unlockedAuras = [];
+let unlockedTrails = [];
+let unlockedAccessories = [];
 let equippedSkin = localStorage.getItem('kolblocks_equipped') || 'default';
 let equippedAura = localStorage.getItem('kolblocks_equipped_aura') || null;
+let equippedTrail = localStorage.getItem('kolblocks_equipped_trail') || null;
+let equippedAccessory = localStorage.getItem('kolblocks_equipped_accessory') || null;
+let usedPromoCodes = JSON.parse(localStorage.getItem('kolblocks_used_promos')) || [];
+let playerNickname = localStorage.getItem('kolblocks_nickname') || '';
+
 let roundCoins = 0, roundDamage = 0;
 let lastKaleidoscopeColor = null;
 let lastKaleidoscopeDate = null;
@@ -130,7 +148,6 @@ let biomImages = [];
 let biomLoaded = false;
 let biomFileNames = [];
 let biomLoadingStarted = false;
-let biomLoadAttempts = 0;
 
 const BUILTIN_BIOMS = [
     { type: 'gradient', colors: ['#0a0a1a', '#1a1a2e'], name: 'Тёмный лес' },
@@ -155,20 +172,49 @@ let comboCount = 1, maxCombo = 1, comboTimer = 0, comboMultiplier = 1;
 let screenShake = 0, shakeIntensity = 0, lastCheckpointX = 0, boss = null, bossesDefeated = 0;
 let levelKeys = [];
 
-let cardCount = parseInt(localStorage.getItem('kolblocks_cards')) || 0;
-
-let unlockedTrails = JSON.parse(localStorage.getItem('kolblocks_trails')) || [];
-let equippedTrail = localStorage.getItem('kolblocks_equipped_trail') || null;
-
-let unlockedAccessories = JSON.parse(localStorage.getItem('kolblocks_accessories')) || [];
-let equippedAccessory = localStorage.getItem('kolblocks_equipped_accessory') || null;
-
-let usedPromoCodes = JSON.parse(localStorage.getItem('kolblocks_used_promos')) || [];
-let playerNickname = localStorage.getItem('kolblocks_nickname') || '';
-
 const platformTextures = [ {color: '#FF2E63', pattern: 'stripes'}, {color: '#08D9D6', pattern: 'dots'}, {color: '#FFDE7D', pattern: 'checker'}, {color: '#6A2C70', pattern: 'zigzag'}, {color: '#4ECDC4', pattern: 'bricks'}, {color: '#FF9A76', pattern: 'waves'} ];
 const enemyColors = ['#FF2E63', '#FFDE7D', '#6A2C70', '#08D9D6', '#AA00FF'];
 const flyingEnemyColors = ['#FF00FF', '#00FFFF', '#FFFF00', '#FF6600'];
+
+// ==================== КЭШИРОВАНИЕ DOM-ЭЛЕМЕНТОВ ====================
+const UI_ELEMENTS = {};
+
+function cacheUIElements() {
+    UI_ELEMENTS.levelDisplay = document.getElementById('levelDisplay');
+    UI_ELEMENTS.scoreDisplay = document.getElementById('scoreDisplay');
+    UI_ELEMENTS.comboCount = document.getElementById('comboCount');
+    UI_ELEMENTS.eloValue = document.getElementById('eloValue');
+    UI_ELEMENTS.cardCountDisplay = document.getElementById('cardCountDisplay');
+    UI_ELEMENTS.healthFill = document.getElementById('healthFill');
+    UI_ELEMENTS.bossHealthFill = document.getElementById('bossHealthFill');
+    UI_ELEMENTS.dashIndicator = document.querySelectorAll('.dash-dot');
+    UI_ELEMENTS.checkpointIndicator = document.getElementById('checkpointIndicator');
+}
+
+// ==================== ЗАГРУЗКА ДАННЫХ В КЭШ ====================
+function loadAllData() {
+    if (DATA_CACHE.loaded) return;
+    
+    DATA_CACHE.skins = JSON.parse(localStorage.getItem('kolblocks_skins')) || ['default'];
+    DATA_CACHE.auras = JSON.parse(localStorage.getItem('kolblocks_auras')) || [];
+    DATA_CACHE.trails = JSON.parse(localStorage.getItem('kolblocks_trails')) || [];
+    DATA_CACHE.accessories = JSON.parse(localStorage.getItem('kolblocks_accessories')) || [];
+    DATA_CACHE.loaded = true;
+    
+    unlockedSkins = DATA_CACHE.skins;
+    unlockedAuras = DATA_CACHE.auras;
+    unlockedTrails = DATA_CACHE.trails;
+    unlockedAccessories = DATA_CACHE.accessories;
+    
+    console.log('✅ Данные загружены в кэш');
+}
+
+function updateCache() {
+    DATA_CACHE.skins = unlockedSkins;
+    DATA_CACHE.auras = unlockedAuras;
+    DATA_CACHE.trails = unlockedTrails;
+    DATA_CACHE.accessories = unlockedAccessories;
+}
 
 function clearKeys() {
     for (let key in keys) {
@@ -220,21 +266,71 @@ function clearAllTimeouts() {
 }
 
 function resizeCanvas(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;}
-function updateHealthBar(){document.getElementById('healthFill').style.width=`${(playerHealth/maxHealth)*100}%`;}
-function updateBossHealth(){if(boss){const percent=(boss.health/boss.maxHealth)*100;document.getElementById('bossHealthFill').style.width=`${percent}%`;}}
-function updateUI(){
-    document.getElementById('levelDisplay').textContent=currentLevel;
-    document.getElementById('scoreDisplay').textContent=score;
-    document.getElementById('comboCount').textContent=`x${comboCount}`;
-    document.getElementById('eloValue').textContent = Math.floor(playerELO);
-    document.getElementById('cardCountDisplay').textContent = cardCount;
+
+function updateHealthBar(){
+    if (UI_ELEMENTS.healthFill) {
+        UI_ELEMENTS.healthFill.style.width = `${(playerHealth/maxHealth)*100}%`;
+    }
 }
-function addScore(points){score+=Math.floor(points*comboMultiplier);updateUI();}
-function updateCombo(){comboCount++;comboTimer=CONFIG.combat.comboDecay;comboMultiplier=1+(comboCount-1)*0.1;maxCombo=Math.max(maxCombo,comboCount);const cd=document.getElementById('comboDisplay');cd.classList.add('active');document.getElementById('comboValue').textContent=comboCount;safeTimeout(()=>cd.classList.remove('active'),1000);if(comboCount>=5)AudioSys.combo();}
-function decayCombo(){if(comboTimer>0){comboTimer--;if(comboTimer<=0){comboCount=1;comboMultiplier=1;updateUI();}}}
-function shakeScreen(intensity){screenShake=20;shakeIntensity=intensity;}
-function updateDashIndicator(){const dots=document.querySelectorAll('.dash-dot');dots.forEach((dot,i)=>{dot.classList.toggle('active',i<player.dashCharges);});}
-function showCheckpointIndicator(){const ci=document.getElementById('checkpointIndicator');ci.classList.add('active');safeTimeout(()=>ci.classList.remove('active'),2000);}
+
+function updateBossHealth(){
+    if (boss && UI_ELEMENTS.bossHealthFill) {
+        const percent = (boss.health / boss.maxHealth) * 100;
+        UI_ELEMENTS.bossHealthFill.style.width = `${percent}%`;
+    }
+}
+
+function updateUI(){
+    if (UI_ELEMENTS.levelDisplay) UI_ELEMENTS.levelDisplay.textContent = currentLevel;
+    if (UI_ELEMENTS.scoreDisplay) UI_ELEMENTS.scoreDisplay.textContent = score;
+    if (UI_ELEMENTS.comboCount) UI_ELEMENTS.comboCount.textContent = `x${comboCount}`;
+    if (UI_ELEMENTS.eloValue) UI_ELEMENTS.eloValue.textContent = Math.floor(playerELO);
+    if (UI_ELEMENTS.cardCountDisplay) UI_ELEMENTS.cardCountDisplay.textContent = cardCount;
+}
+
+function addScore(points){score += Math.floor(points * comboMultiplier); updateUI();}
+
+function updateCombo(){
+    comboCount++;
+    comboTimer = CONFIG.combat.comboDecay;
+    comboMultiplier = 1 + (comboCount - 1) * 0.1;
+    maxCombo = Math.max(maxCombo, comboCount);
+    const cd = document.getElementById('comboDisplay');
+    if (cd) {
+        cd.classList.add('active');
+        document.getElementById('comboValue').textContent = comboCount;
+        safeTimeout(() => cd.classList.remove('active'), 1000);
+    }
+    if (comboCount >= 5) AudioSys.combo();
+}
+
+function decayCombo(){
+    if (comboTimer > 0) {
+        comboTimer--;
+        if (comboTimer <= 0) {
+            comboCount = 1;
+            comboMultiplier = 1;
+            updateUI();
+        }
+    }
+}
+
+function shakeScreen(intensity){screenShake = 20; shakeIntensity = intensity;}
+
+function updateDashIndicator(){
+    const dots = UI_ELEMENTS.dashIndicator || document.querySelectorAll('.dash-dot');
+    dots.forEach((dot, i) => {
+        dot.classList.toggle('active', i < player.dashCharges);
+    });
+}
+
+function showCheckpointIndicator(){
+    const ci = UI_ELEMENTS.checkpointIndicator || document.getElementById('checkpointIndicator');
+    if (ci) {
+        ci.classList.add('active');
+        safeTimeout(() => ci.classList.remove('active'), 2000);
+    }
+}
 
 function getKaleidoscopeColor() {
     const now = new Date();
@@ -265,20 +361,27 @@ function saveAllData() {
     localStorage.setItem('kolblocks_equipped_accessory', equippedAccessory || '');
     localStorage.setItem('kolblocks_used_promos', JSON.stringify(usedPromoCodes));
     localStorage.setItem('kolblocks_nickname', playerNickname);
+    
+    updateCache();
 }
 
 function updateCardDisplay() {
     const cardSpan = document.getElementById('cardCountDisplay');
-    if(cardSpan) cardSpan.textContent = cardCount;
+    if (cardSpan) cardSpan.textContent = cardCount;
     const shopCardSpan = document.getElementById('shopCardCount');
-    if(shopCardSpan) shopCardSpan.textContent = cardCount;
+    if (shopCardSpan) shopCardSpan.textContent = cardCount;
     const craftCardSpan = document.getElementById('craftCardCount');
-    if(craftCardSpan) craftCardSpan.textContent = cardCount;
+    if (craftCardSpan) craftCardSpan.textContent = cardCount;
     const craftKeySpan = document.getElementById('craftKeyCount');
-    if(craftKeySpan) craftKeySpan.textContent = totalKeys;
+    if (craftKeySpan) craftKeySpan.textContent = totalKeys;
 }
 
-function updateEloDisplay() { document.getElementById('eloValue').textContent = Math.floor(playerELO); }
+function updateEloDisplay() {
+    if (UI_ELEMENTS.eloValue) {
+        UI_ELEMENTS.eloValue.textContent = Math.floor(playerELO);
+    }
+}
+
 function showEloChange(change) {
     const el = document.createElement('div');
     el.className = 'elo-change ' + (change >= 0 ? 'positive' : 'negative');
@@ -287,6 +390,7 @@ function showEloChange(change) {
     if (change >= 0) AudioSys.eloGain(); else AudioSys.eloLoss();
     safeTimeout(() => el.remove(), 1500);
 }
+
 function calculateEloChange() {
     const coinsBonus = Math.floor(roundCoins * CONFIG.elo.coinsMultiplier);
     const damagePenalty = Math.floor(roundDamage / CONFIG.elo.damageDivider);
@@ -298,44 +402,44 @@ function calculateEloChange() {
 
 function getSkinData(id) {
     const all = [{id:'default',name:'Стандарт',color:'#4af626'}, ...CHEST_SKINS, ...PAID_SKINS];
-    const skin = all.find(s=>s.id===id) || all[0];
+    const skin = all.find(s => s.id === id) || all[0];
     if (skin.id === 'kaleidoscope') skin.color = getKaleidoscopeColor();
     return skin;
 }
 
 function getAuraData(id) {
     if (!id) return null;
-    return AURA_SKINS.find(a=>a.id===id) || null;
+    return AURA_SKINS.find(a => a.id === id) || null;
 }
 
 function getTrailData(id) {
     if (!id) return null;
     const all = [...CASE_TRAILS, ...SPECIAL_TRAILS, ...PAID_TRAILS];
-    return all.find(t=>t.id===id) || null;
+    return all.find(t => t.id === id) || null;
 }
 
 function openCardCraft() {
     clearKeys();
     gameRunning = false;
-    if(gameLoopId) cancelAnimationFrame(gameLoopId);
+    if (gameLoopId) cancelAnimationFrame(gameLoopId);
     document.getElementById('pauseMenu').style.display = 'none';
     document.getElementById('cardCraftScreen').style.display = 'flex';
     updateCardDisplay();
     
     const craftBtn = document.getElementById('craftBtn');
-    if(craftBtn) craftBtn.disabled = cardCount < 3;
+    if (craftBtn) craftBtn.disabled = cardCount < 3;
 }
 
 function closeCardCraft() {
     document.getElementById('cardCraftScreen').style.display = 'none';
     clearKeys();
     gameRunning = true;
-    if(gameLoopId) cancelAnimationFrame(gameLoopId);
+    if (gameLoopId) cancelAnimationFrame(gameLoopId);
     gameLoop();
 }
 
 function craftKeys() {
-    if(cardCount >= 3) {
+    if (cardCount >= 3) {
         cardCount -= 3;
         totalKeys += 1;
         saveAllData();
@@ -359,7 +463,7 @@ function craftKeys() {
         safeTimeout(() => msg.remove(), 1500);
         
         const craftBtn = document.getElementById('craftBtn');
-        if(craftBtn) craftBtn.disabled = cardCount < 3;
+        if (craftBtn) craftBtn.disabled = cardCount < 3;
         
         AudioSys.play(440, 0.2, 'sine', 0.2);
     }
@@ -2249,39 +2353,209 @@ function unequipAccessory() {
     safeTimeout(() => msg.remove(), 1200);
 }
 
+// ==================== ОТРИСОВКА С КЭШИРОВАНИЕМ ====================
 function renderSkins() {
-    const g = document.getElementById('skinsGrid'); if(!g) return;
+    const g = document.getElementById('skinsGrid');
+    if (!g) return;
+    
+    const cacheKey = unlockedSkins.join(',');
+    if (g._cached === cacheKey) return;
+    
     g.innerHTML = '';
     const all = [{id:'default',name:'Стандарт',color:'#4af626'}, ...CHEST_SKINS];
     all.forEach(s => {
-        const u = unlockedSkins.includes(s.id), e = equippedSkin === s.id;
+        const u = unlockedSkins.includes(s.id);
+        const e = equippedSkin === s.id;
         let displayColor = s.color;
         if (s.id === 'kaleidoscope' && u) displayColor = getKaleidoscopeColor();
         if (s.id === 'blackghost' && u) displayColor = '#222222';
-        const d = document.createElement('div'); d.className = 'skin-item ' + (e ? 'equipped' : '') + (!u ? 'locked' : '');
+        const d = document.createElement('div');
+        d.className = 'skin-item ' + (e ? 'equipped' : '') + (!u ? 'locked' : '');
         d.innerHTML = '<div class="skin-preview" style="background:' + (u ? displayColor : '#333') + '"></div><span class="skin-name">' + s.name + '</span><button class="equip-btn" onclick="equipSkin(\'' + s.id + '\')" ' + (!u || e ? 'disabled' : '') + '>' + (e ? '✓ Выбран' : 'Выбрать') + '</button>';
         g.appendChild(d);
     });
+    
+    g._cached = cacheKey;
 }
 
 function renderAuras() {
-    const g = document.getElementById('aurasGrid'); if(!g) return;
+    const g = document.getElementById('aurasGrid');
+    if (!g) return;
+    
+    const cacheKey = unlockedAuras.join(',');
+    if (g._cached === cacheKey) return;
+    
     g.innerHTML = '';
     if (unlockedAuras.length === 0) {
         g.innerHTML = '<div style="color:#aaa; text-align:center; grid-column:1/-1;">Нет аур. Открывайте кейсы!</div>';
+        g._cached = cacheKey;
         return;
     }
     AURA_SKINS.forEach(a => {
-        const u = unlockedAuras.includes(a.id), e = equippedAura === a.id;
+        const u = unlockedAuras.includes(a.id);
+        const e = equippedAura === a.id;
         const d = document.createElement('div'); 
         d.className = 'skin-item ' + (e ? 'equipped' : '') + (!u ? 'locked' : '');
         d.innerHTML = '<div class="skin-preview" style="background:' + (u ? a.color : '#333') + '; box-shadow:0 0 10px ' + (u ? a.color : '#333') + ';"></div><span class="skin-name">' + a.name + '</span><button class="equip-btn" onclick="equipAura(\'' + a.id + '\')" ' + (!u || e ? 'disabled' : '') + '>' + (e ? '✓ Активирована' : 'Активировать') + '</button>';
         g.appendChild(d);
     });
+    
+    g._cached = cacheKey;
+}
+
+function renderTrails() {
+    const g = document.getElementById('trailsGrid');
+    if (!g) return;
+    
+    const cacheKey = unlockedTrails.join(',');
+    if (g._cached === cacheKey) return;
+    
+    g.innerHTML = '';
+    const allTrails = [...CASE_TRAILS, ...SPECIAL_TRAILS];
+    let anyOwned = false;
+    
+    allTrails.forEach(t => {
+        const u = unlockedTrails.includes(t.id);
+        if (!u) return;
+        anyOwned = true;
+        const e = equippedTrail === t.id;
+        const d = document.createElement('div');
+        d.className = 'skin-item ' + (e ? 'equipped' : '');
+        d.innerHTML = `
+            <div class="skin-preview" style="background:linear-gradient(135deg, ${t.color}, ${t.color}88); box-shadow:0 0 15px ${t.color};"></div>
+            <span class="skin-name">${t.name}</span>
+            ${t.description ? `<span class="skin-desc">${t.description}</span>` : ''}
+            <button class="equip-btn" onclick="equipTrail('${t.id}')" ${e ? 'disabled' : ''}>${e ? '✓ Активен' : 'Активировать'}</button>
+        `;
+        g.appendChild(d);
+    });
+    
+    if (!anyOwned) {
+        g.innerHTML = '<div style="color:#aaa; text-align:center; grid-column:1/-1;">Откройте трейлы в кейсе или через промокоды!</div>';
+    }
+    
+    g._cached = cacheKey;
+}
+
+function renderPaidTrails() {
+    const g = document.getElementById('paidTrailsGrid');
+    const title = document.getElementById('paidTrailsTitle');
+    if (!g || !title) return;
+    
+    if (!isBefore(AUG_31_2026)) {
+        title.style.display = 'none';
+        g.innerHTML = '<div style="color:#aaa; text-align:center; grid-column:1/-1;">Сезон платных трейлов завершён</div>';
+        return;
+    }
+    
+    const diff = AUG_31_2026 - new Date();
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    title.innerHTML = `💎 Платные трейлы (осталось ${days} дней):`;
+    
+    const cacheKey = unlockedTrails.join(',') + '-' + equippedTrail;
+    if (g._cached === cacheKey) return;
+    
+    g.innerHTML = '';
+    PAID_TRAILS.forEach(t => {
+        const u = unlockedTrails.includes(t.id);
+        const e = equippedTrail === t.id;
+        const d = document.createElement('div');
+        d.className = 'skin-item paid-skin ' + (e ? 'equipped' : '');
+        let btnHtml = '';
+        if (u) {
+            btnHtml = `<button class="equip-btn" onclick="equipTrail('${t.id}')" ${e ? 'disabled' : ''}>${e ? '✓ Активен' : 'Активировать'}</button>`;
+        } else {
+            btnHtml = `<button class="equip-btn buy-btn" onclick="buyTrail('${t.id}')">КУПИТЬ (${t.price} 🔑)</button>`;
+        }
+        d.innerHTML = `
+            <div class="skin-preview" style="background:linear-gradient(135deg, ${t.color}, ${t.color}88); box-shadow:0 0 15px ${t.color};"></div>
+            <span class="skin-name">${t.name}</span>
+            <span class="skin-desc">${t.description || ''}</span>
+            ${btnHtml}
+        `;
+        g.appendChild(d);
+    });
+    
+    g._cached = cacheKey;
+}
+
+function renderPaidSkins() {
+    const g = document.getElementById('paidSkinsGrid');
+    if (!g) return;
+    
+    const cacheKey = unlockedSkins.join(',') + '-' + equippedSkin;
+    if (g._cached === cacheKey) return;
+    
+    g.innerHTML = '';
+    PAID_SKINS.forEach(s => {
+        const u = unlockedSkins.includes(s.id);
+        const e = equippedSkin === s.id;
+        const d = document.createElement('div');
+        d.className = 'skin-item paid-skin ' + (e ? 'equipped' : '');
+        let btnHtml = '';
+        if (u) {
+            btnHtml = `<button class="equip-btn" onclick="equipSkin('${s.id}')" ${e ? 'disabled' : ''}>${e ? '✓ Выбран' : 'Выбрать'}</button>`;
+        } else {
+            btnHtml = `<button class="equip-btn buy-btn" onclick="buyPaidSkin('${s.id}')">КУПИТЬ (${s.price} 🔑)</button>`;
+        }
+        d.innerHTML = `
+            <div class="skin-preview" style="background:${s.color};"></div>
+            <span class="skin-name">${s.name}</span>
+            <span class="skin-desc">${s.description}</span>
+            ${btnHtml}
+        `;
+        g.appendChild(d);
+    });
+    
+    g._cached = cacheKey;
+}
+
+function renderAccessories() {
+    const g = document.getElementById('accessoriesGrid');
+    if (!g) return;
+    
+    const cacheKey = unlockedAccessories.join(',') + '-' + equippedAccessory;
+    if (g._cached === cacheKey) return;
+    
+    g.innerHTML = '';
+    ACCESSORIES.forEach(a => {
+        const u = unlockedAccessories.includes(a.id);
+        const e = equippedAccessory === a.id;
+        const d = document.createElement('div');
+        d.className = 'skin-item ' + (e ? 'equipped' : '') + (!u ? 'locked' : '');
+        
+        if (u) {
+            d.innerHTML = `
+                <div class="skin-preview" style="background:#00ccff; box-shadow:0 0 10px #00ccff;"></div>
+                <span class="skin-name">${a.name}</span>
+                <span class="skin-desc">${a.description}</span>
+                <button class="equip-btn" onclick="equipAccessory('${a.id}')" ${e ? 'disabled' : ''}>${e ? '✓ Активен' : 'Надеть'}</button>
+            `;
+        } else {
+            d.innerHTML = `
+                <div class="skin-preview" style="background:#333;"></div>
+                <span class="skin-name">🔒 ${a.name}</span>
+                <span class="skin-desc">${a.description}</span>
+                <button class="equip-btn" disabled>Получить</button>
+            `;
+        }
+        g.appendChild(d);
+    });
+    
+    if (unlockedAccessories.length === 0) {
+        g.innerHTML = '<div style="color:#aaa; text-align:center; grid-column:1/-1;">Нет доступных аксессуаров</div>';
+    }
+    
+    g._cached = cacheKey;
 }
 
 function equipSkin(id) {
-    if (unlockedSkins.includes(id)) { equippedSkin = id; saveAllData(); renderSkins(); }
+    if (unlockedSkins.includes(id)) { 
+        equippedSkin = id; 
+        saveAllData(); 
+        renderSkins();
+        renderPaidSkins();
+    }
 }
 
 function equipAura(id) {
@@ -2289,6 +2563,27 @@ function equipAura(id) {
         equippedAura = equippedAura === id ? null : id; 
         saveAllData(); 
         renderAuras(); 
+    }
+}
+
+function equipTrail(id) {
+    if (unlockedTrails.includes(id)) {
+        equippedTrail = id;
+        saveAllData();
+        renderTrails();
+        renderPaidTrails();
+        updateUnequipButtons();
+        const trailData = getTrailData(equippedTrail);
+        document.getElementById('currentTrailDisplay').textContent = trailData ? trailData.name : 'Нет';
+    }
+}
+
+function equipAccessory(id) {
+    if (unlockedAccessories.includes(id)) {
+        equippedAccessory = id;
+        saveAllData();
+        renderAccessories();
+        updateUnequipButtons();
     }
 }
 
@@ -2517,84 +2812,6 @@ function openTrailChest() {
     }, 1200);
 }
 
-function renderTrails() {
-    const g = document.getElementById('trailsGrid');
-    if (!g) return;
-    g.innerHTML = '';
-    
-    const allTrails = [...CASE_TRAILS, ...SPECIAL_TRAILS];
-    let anyOwned = false;
-    
-    allTrails.forEach(t => {
-        const u = unlockedTrails.includes(t.id);
-        if (!u) return;
-        anyOwned = true;
-        const e = equippedTrail === t.id;
-        const d = document.createElement('div');
-        d.className = 'skin-item ' + (e ? 'equipped' : '');
-        d.innerHTML = `
-            <div class="skin-preview" style="background:linear-gradient(135deg, ${t.color}, ${t.color}88); box-shadow:0 0 15px ${t.color};"></div>
-            <span class="skin-name">${t.name}</span>
-            ${t.description ? `<span class="skin-desc">${t.description}</span>` : ''}
-            <button class="equip-btn" onclick="equipTrail('${t.id}')" ${e ? 'disabled' : ''}>${e ? '✓ Активен' : 'Активировать'}</button>
-        `;
-        g.appendChild(d);
-    });
-    
-    if (!anyOwned) {
-        g.innerHTML = '<div style="color:#aaa; text-align:center; grid-column:1/-1;">Откройте трейлы в кейсе или через промокоды!</div>';
-    }
-}
-
-function renderPaidTrails() {
-    const g = document.getElementById('paidTrailsGrid');
-    const title = document.getElementById('paidTrailsTitle');
-    if (!g || !title) return;
-    g.innerHTML = '';
-    
-    if (!isBefore(AUG_31_2026)) {
-        title.style.display = 'none';
-        g.innerHTML = '<div style="color:#aaa; text-align:center; grid-column:1/-1;">Сезон платных трейлов завершён</div>';
-        return;
-    }
-    
-    const diff = AUG_31_2026 - new Date();
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    title.innerHTML = `💎 Платные трейлы (осталось ${days} дней):`;
-    
-    PAID_TRAILS.forEach(t => {
-        const u = unlockedTrails.includes(t.id);
-        const e = equippedTrail === t.id;
-        const d = document.createElement('div');
-        d.className = 'skin-item paid-skin ' + (e ? 'equipped' : '');
-        let btnHtml = '';
-        if (u) {
-            btnHtml = `<button class="equip-btn" onclick="equipTrail('${t.id}')" ${e ? 'disabled' : ''}>${e ? '✓ Активен' : 'Активировать'}</button>`;
-        } else {
-            btnHtml = `<button class="equip-btn buy-btn" onclick="buyTrail('${t.id}')">КУПИТЬ (${t.price} 🔑)</button>`;
-        }
-        d.innerHTML = `
-            <div class="skin-preview" style="background:linear-gradient(135deg, ${t.color}, ${t.color}88); box-shadow:0 0 15px ${t.color};"></div>
-            <span class="skin-name">${t.name}</span>
-            <span class="skin-desc">${t.description || ''}</span>
-            ${btnHtml}
-        `;
-        g.appendChild(d);
-    });
-}
-
-function equipTrail(id) {
-    if (unlockedTrails.includes(id)) {
-        equippedTrail = id;
-        saveAllData();
-        renderTrails();
-        renderPaidTrails();
-        updateUnequipButtons();
-        const trailData = getTrailData(equippedTrail);
-        document.getElementById('currentTrailDisplay').textContent = trailData ? trailData.name : 'Нет';
-    }
-}
-
 function buyTrail(id) {
     const trail = PAID_TRAILS.find(t => t.id === id);
     if (!trail) return;
@@ -2629,66 +2846,6 @@ function buyTrail(id) {
     safeTimeout(() => msg.remove(), 2000);
 }
 
-function renderPaidSkins() {
-    const g = document.getElementById('paidSkinsGrid');
-    if (!g) return;
-    g.innerHTML = '';
-    
-    PAID_SKINS.forEach(s => {
-        const u = unlockedSkins.includes(s.id);
-        const e = equippedSkin === s.id;
-        const d = document.createElement('div');
-        d.className = 'skin-item paid-skin ' + (e ? 'equipped' : '');
-        let btnHtml = '';
-        if (u) {
-            btnHtml = `<button class="equip-btn" onclick="equipSkin('${s.id}')" ${e ? 'disabled' : ''}>${e ? '✓ Выбран' : 'Выбрать'}</button>`;
-        } else {
-            btnHtml = `<button class="equip-btn buy-btn" onclick="buyPaidSkin('${s.id}')">КУПИТЬ (${s.price} 🔑)</button>`;
-        }
-        d.innerHTML = `
-            <div class="skin-preview" style="background:${s.color};"></div>
-            <span class="skin-name">${s.name}</span>
-            <span class="skin-desc">${s.description}</span>
-            ${btnHtml}
-        `;
-        g.appendChild(d);
-    });
-}
-
-function renderAccessories() {
-    const g = document.getElementById('accessoriesGrid');
-    if (!g) return;
-    g.innerHTML = '';
-    
-    ACCESSORIES.forEach(a => {
-        const u = unlockedAccessories.includes(a.id);
-        const e = equippedAccessory === a.id;
-        const d = document.createElement('div');
-        d.className = 'skin-item ' + (e ? 'equipped' : '') + (!u ? 'locked' : '');
-        
-        if (u) {
-            d.innerHTML = `
-                <div class="skin-preview" style="background:#00ccff; box-shadow:0 0 10px #00ccff;"></div>
-                <span class="skin-name">${a.name}</span>
-                <span class="skin-desc">${a.description}</span>
-                <button class="equip-btn" onclick="equipAccessory('${a.id}')" ${e ? 'disabled' : ''}>${e ? '✓ Активен' : 'Надеть'}</button>
-            `;
-        } else {
-            d.innerHTML = `
-                <div class="skin-preview" style="background:#333;"></div>
-                <span class="skin-name">🔒 ${a.name}</span>
-                <span class="skin-desc">${a.description}</span>
-                <button class="equip-btn" disabled>Получить</button>
-            `;
-        }
-        g.appendChild(d);
-    });
-    
-    if (unlockedAccessories.length === 0) {
-        g.innerHTML = '<div style="color:#aaa; text-align:center; grid-column:1/-1;">Нет доступных аксессуаров</div>';
-    }
-}
-
 function buyPaidSkin(id) {
     const skin = PAID_SKINS.find(s => s.id === id);
     if (!skin) return;
@@ -2714,15 +2871,6 @@ function buyPaidSkin(id) {
     msg.style.cssText = `position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);color:${skin.color};font-size:24px;font-weight:bold;background:rgba(0,0,0,0.9);padding:15px 30px;border-radius:15px;border:2px solid ${skin.color};z-index:1000;`;
     document.body.appendChild(msg);
     safeTimeout(() => msg.remove(), 2000);
-}
-
-function equipAccessory(id) {
-    if (unlockedAccessories.includes(id)) {
-        equippedAccessory = id;
-        saveAllData();
-        renderAccessories();
-        updateUnequipButtons();
-    }
 }
 
 function openPromoCode() {
@@ -2929,7 +3077,7 @@ function showResult(title, text, col) {
 
 function hideResult() { const r = document.getElementById('chestResult'); if(r) r.style.display = 'none'; }
 
-// ==================== ЗАГРУЗКА КАРТИНОК ДЛЯ АУР (FIXED) ====================
+// ==================== ЗАГРУЗКА КАРТИНОК ДЛЯ АУР ====================
 function loadAuraImages() {
     let loadedCount = 0;
     const totalToLoad = 3;
@@ -2942,58 +3090,47 @@ function loadAuraImages() {
         }
     }
     
-    // Огурец
     cucumberImage = new Image();
     cucumberImage.crossOrigin = 'anonymous';
     cucumberImage.onload = () => { 
-        console.log('✅ Огурец загружен:', cucumberImage.src);
+        console.log('✅ Огурец загружен');
         checkAllLoaded(); 
     };
     cucumberImage.onerror = () => { 
-        console.warn('⚠️ Огурец не загружен, будет использован градиент');
+        console.warn('⚠️ Огурец не загружен');
         cucumberImage = null; 
         checkAllLoaded(); 
     };
     cucumberImage.src = 'ogurec.webp';
     
-    // Батидао
     batidaoImage = new Image();
     batidaoImage.crossOrigin = 'anonymous';
     batidaoImage.onload = () => { 
-        console.log('✅ Батидао загружен:', batidaoImage.src);
+        console.log('✅ Батидао загружен');
         checkAllLoaded(); 
     };
     batidaoImage.onerror = () => { 
-        console.warn('⚠️ Батидао не загружен, будет использован градиент');
+        console.warn('⚠️ Батидао не загружен');
         batidaoImage = null; 
         checkAllLoaded(); 
     };
     batidaoImage.src = 'batidao.png';
     
-    // Взрыв
     explosionGif = new Image();
     explosionGif.crossOrigin = 'anonymous';
     explosionGif.onload = () => { 
-        console.log('✅ Взрыв загружен:', explosionGif.src);
+        console.log('✅ Взрыв загружен');
         checkAllLoaded(); 
     };
     explosionGif.onerror = () => { 
-        console.warn('⚠️ Взрыв не загружен, будет использован градиент');
+        console.warn('⚠️ Взрыв не загружен');
         explosionGif = null; 
         checkAllLoaded(); 
     };
     explosionGif.src = 'vzryv.gif';
-    
-    // Если картинки не загрузились за 3 секунды — всё равно продолжаем
-    setTimeout(() => {
-        if (loadedCount < totalToLoad) {
-            console.warn('⚠️ Таймаут загрузки картинок аур, продолжаем без них');
-            auraImagesLoaded = true;
-        }
-    }, 3000);
 }
 
-// ==================== ПОКАЗ АУР (С ТУМАНОМ) ====================
+// ==================== ПОКАЗ АУР ====================
 function showAuraEffectOnPlayer(x, y, aura) {
     if(activeAuraEffect) { 
         activeAuraEffect.remove(); 
@@ -3011,7 +3148,6 @@ function showAuraEffectOnPlayer(x, y, aura) {
     effect.style.width = '300px';
     effect.style.height = '300px';
     
-    // БАТИДАО
     if(aura.id === 'batidao_aura') {
         effect.style.background = `radial-gradient(circle, ${aura.effectColor} 0%, transparent 70%)`;
         if(batidaoImage && batidaoImage.complete && batidaoImage.naturalWidth > 0) {
@@ -3040,7 +3176,6 @@ function showAuraEffectOnPlayer(x, y, aura) {
             }, i * 10);
         }
     }
-    // ВЗРЫВ
     else if(aura.id === 'explosion_aura') {
         effect.style.background = `radial-gradient(circle, #ff0000, #ff6600, #ffff00, transparent)`;
         if(explosionGif && explosionGif.complete && explosionGif.naturalWidth > 0) {
@@ -3073,7 +3208,6 @@ function showAuraEffectOnPlayer(x, y, aura) {
             }, i * 8);
         }
     }
-    // ОГУРЕЦ
     else if(aura.id === 'cucumber_aura') {
         effect.style.background = `radial-gradient(circle, ${aura.effectColor} 0%, transparent 70%)`;
         if(cucumberImage && cucumberImage.complete && cucumberImage.naturalWidth > 0) {
@@ -3102,7 +3236,6 @@ function showAuraEffectOnPlayer(x, y, aura) {
             }, i * 12);
         }
     }
-    // ПОДСОЛНЕЧНАЯ
     else if(aura.id === 'sunflower_aura') {
         effect.style.background = `radial-gradient(circle, ${aura.effectColor} 0%, #FFD700 30%, transparent 70%)`;
         effect.style.boxShadow = `0 0 50px ${aura.color}, 0 0 80px #FFA500`;
@@ -3126,7 +3259,6 @@ function showAuraEffectOnPlayer(x, y, aura) {
             }, i * 15);
         }
     }
-    // ВИШНЁВАЯ (с туманом)
     else if(aura.id === 'cherry_aura') {
         effect.style.background = `radial-gradient(circle, #ff3366, #ff6699, transparent)`;
         effect.style.boxShadow = `0 0 40px #ff3366`;
@@ -3148,7 +3280,6 @@ function showAuraEffectOnPlayer(x, y, aura) {
             }, i * 10);
         }
     }
-    // ЛАВАНДОВАЯ (с туманом)
     else if(aura.id === 'lavender_aura') {
         effect.style.background = `radial-gradient(circle, #E6E6FA, #D8BFD8, transparent)`;
         effect.style.boxShadow = `0 0 40px #D8BFD8`;
@@ -3170,7 +3301,6 @@ function showAuraEffectOnPlayer(x, y, aura) {
             }, i * 15);
         }
     }
-    // РОЗОВАЯ (с туманом)
     else if(aura.id === 'rose_aura') {
         effect.style.background = `radial-gradient(circle, #FF69B4, #FF1493, transparent)`;
         effect.style.boxShadow = `0 0 40px #FF69B4`;
@@ -3192,7 +3322,6 @@ function showAuraEffectOnPlayer(x, y, aura) {
             }, i * 15);
         }
     }
-    // ВЕСЕННЯЯ (с туманом)
     else if(aura.id === 'spring_aura') {
         effect.style.background = `radial-gradient(circle, #00FA9A, #3CB371, transparent)`;
         effect.style.boxShadow = `0 0 40px #00FA9A`;
@@ -3214,7 +3343,6 @@ function showAuraEffectOnPlayer(x, y, aura) {
             }, i * 10);
         }
     }
-    // ОСТАЛЬНЫЕ АУРЫ
     else {
         effect.style.background = `radial-gradient(circle, ${aura.effectColor}, transparent)`;
         effect.style.boxShadow = `0 0 40px ${aura.color}`;
@@ -3226,6 +3354,7 @@ function showAuraEffectOnPlayer(x, y, aura) {
     safeTimeout(() => { if(activeAuraEffect) { activeAuraEffect.remove(); activeAuraEffect = null; } }, 500);
 }
 
+// ==================== ОСНОВНОЙ ЦИКЛ ИГРЫ ====================
 function gameLoop(){
     if(!gameRunning) return;
     
@@ -3281,53 +3410,84 @@ function gameLoop(){
     gameLoopId = requestAnimationFrame(gameLoop);
 }
 
-function completeLevel(){
+// ==================== ОПТИМИЗИРОВАННЫЙ ПЕРЕХОД УРОВНЯ ====================
+function completeLevel() {
     if (inputBlocked) return;
     inputBlocked = true;
     
-    gameRunning=false;
-    if(gameLoopId) cancelAnimationFrame(gameLoopId);
+    gameRunning = false;
+    if (gameLoopId) cancelAnimationFrame(gameLoopId);
+    
     AudioSys.levelComplete();
     changeBiom();
-    addScore(1000*currentLevel);
+    addScore(1000 * currentLevel);
+    
+    const levelScore = Math.floor(1000 * currentLevel * comboMultiplier);
     const eloResult = calculateEloChange();
+    const maxComboValue = maxCombo;
+    const roundCoinsValue = roundCoins;
+    const roundDamageValue = roundDamage;
+    
     const ls = document.getElementById('levelScore');
-    if(ls) ls.textContent=Math.floor(1000*currentLevel*comboMultiplier);
+    if(ls) ls.textContent = levelScore;
     const mc = document.getElementById('maxCombo');
-    if(mc) mc.textContent=`x${maxCombo}`;
+    if(mc) mc.textContent = `x${maxComboValue}`;
     const cc = document.getElementById('coinsCollected');
-    if(cc) cc.textContent = roundCoins;
+    if(cc) cc.textContent = roundCoinsValue;
     const dt = document.getElementById('damageTaken');
-    if(dt) dt.textContent = roundDamage;
+    if(dt) dt.textContent = roundDamageValue;
     const eloChangeEl = document.getElementById('eloChangeDisplay');
     if(eloChangeEl) {
         eloChangeEl.textContent = (eloResult.change >= 0 ? '+' : '') + eloResult.change;
         eloChangeEl.style.color = eloResult.change >= 0 ? '#4af626' : '#ff2e63';
     }
+    
     const lcDiv = document.getElementById('levelComplete');
-    if(lcDiv) lcDiv.style.display='flex';
+    if(lcDiv) lcDiv.style.display = 'flex';
     showEloChange(eloResult.change);
-    for(let i=0;i<80;i++) particlePool.acquire(player.x+player.width/2,player.y+player.height/2,platformTextures[Math.floor(Math.random()*platformTextures.length)].color);
-    safeTimeout(()=>{
-        const lcDiv2 = document.getElementById('levelComplete');
-        if(lcDiv2) lcDiv2.style.display='none';
-        currentLevel++;
-        generateLevel(currentLevel);
-        player.reset();
-        playerHealth = maxHealth;
-        updateHealthBar();
-        cameraX=0;
-        comboCount=1;
-        comboMultiplier=1;
-        maxCombo=1;
-        lastCheckpointX=0;
-        updateUI();
-        updateDashIndicator();
-        updateEloDisplay();
-        inputBlocked = false;
-        gameRunning=true;
-        gameLoop();
-    },2500);
+    
+    const playerX = player.x + player.width / 2;
+    const playerY = player.y + player.height / 2;
+    let particlesSpawned = 0;
+    const maxParticles = 40;
+    
+    function spawnParticle() {
+        if (particlesSpawned >= maxParticles) {
+            requestAnimationFrame(() => {
+                setTimeout(() => {
+                    currentLevel++;
+                    generateLevel(currentLevel);
+                    player.reset();
+                    playerHealth = maxHealth;
+                    updateHealthBar();
+                    cameraX = 0;
+                    comboCount = 1;
+                    comboMultiplier = 1;
+                    maxCombo = 1;
+                    lastCheckpointX = 0;
+                    updateUI();
+                    updateDashIndicator();
+                    updateEloDisplay();
+                    
+                    const lcDiv2 = document.getElementById('levelComplete');
+                    if(lcDiv2) lcDiv2.style.display = 'none';
+                    
+                    inputBlocked = false;
+                    gameRunning = true;
+                    gameLoop();
+                }, 150);
+            });
+            return;
+        }
+        particlePool.acquire(
+            playerX + (Math.random() - 0.5) * 20,
+            playerY + (Math.random() - 0.5) * 20,
+            platformTextures[Math.floor(Math.random() * platformTextures.length)].color
+        );
+        particlesSpawned++;
+        setTimeout(spawnParticle, 10);
+    }
+    spawnParticle();
 }
 
 function gameOver(){
@@ -3412,44 +3572,21 @@ function performMelee(){
 }
 
 function changeBiom() {
-    // Если биомы ещё загружаются — пробуем выбрать из уже загруженных
-    if (!biomLoaded) {
-        // Проверяем, есть ли хоть один загруженный биом
-        let loadedBiom = null;
-        for (let i = 0; i < biomImages.length; i++) {
-            if (biomImages[i] !== null && biomImages[i].complete && biomImages[i].naturalWidth > 0) {
-                loadedBiom = biomImages[i];
-                break;
-            }
+    let loadedBiom = null;
+    for (let i = 0; i < biomImages.length; i++) {
+        if (biomImages[i] !== null && biomImages[i].complete && biomImages[i].naturalWidth > 0) {
+            loadedBiom = biomImages[i];
+            break;
         }
-        if (loadedBiom) {
-            currentBiom = loadedBiom;
-            console.log('✅ Использован загруженный биом');
-        } else {
-            // Если нет — используем встроенный
-            const randomBiom = BUILTIN_BIOMS[Math.floor(Math.random() * BUILTIN_BIOMS.length)];
-            currentBiom = randomBiom;
-            console.log('🔄 Использован встроенный биом (загрузка ещё идёт)');
-        }
+    }
+    
+    if (loadedBiom) {
+        currentBiom = loadedBiom;
         return;
     }
     
-    const validIndices = [];
-    for (let i = 0; i < biomImages.length; i++) {
-        if (biomImages[i] !== null && biomImages[i].complete && biomImages[i].naturalWidth > 0) {
-            validIndices.push(i);
-        }
-    }
-    
-    if (validIndices.length > 0) {
-        const randomIndex = validIndices[Math.floor(Math.random() * validIndices.length)];
-        currentBiom = biomImages[randomIndex];
-        console.log('✅ Случайный биом загружен');
-    } else if (BUILTIN_BIOMS.length > 0) {
-        const randomBiom = BUILTIN_BIOMS[Math.floor(Math.random() * BUILTIN_BIOMS.length)];
-        currentBiom = randomBiom;
-        console.log('🔄 Использован встроенный биом');
-    }
+    const randomBiom = BUILTIN_BIOMS[Math.floor(Math.random() * BUILTIN_BIOMS.length)];
+    currentBiom = randomBiom;
 }
 
 function startAsyncBiomLoading() {
@@ -3476,12 +3613,6 @@ function startAsyncBiomLoading() {
     
     function checkComplete() {
         loadedCount++;
-        // Показываем прогресс в консоли только каждые 10%
-        if (loadedCount % Math.floor(totalToLoad / 10) === 0 || loadedCount === totalToLoad) {
-            const percent = Math.floor((loadedCount / totalToLoad) * 100);
-            console.log(`🌄 Загрузка биомов: ${percent}% (${loadedCount}/${totalToLoad})`);
-        }
-        
         if (loadedCount >= totalToLoad) {
             const validCount = biomFileNames.filter(f => f !== null).length;
             console.log(`✅ Загружено биомов: ${validCount} шт. из ${totalToLoad}`);
@@ -3504,22 +3635,6 @@ function startAsyncBiomLoading() {
         };
         img.src = file;
     });
-    
-    // Если загрузка затянулась — всё равно показываем биом через 5 секунд
-    setTimeout(() => {
-        if (!biomLoaded) {
-            console.warn('⚠️ Загрузка биомов затянулась, показываем встроенный');
-            const randomBiom = BUILTIN_BIOMS[Math.floor(Math.random() * BUILTIN_BIOMS.length)];
-            currentBiom = randomBiom;
-            // Если есть хоть один загруженный — используем его
-            for (let i = 0; i < biomImages.length; i++) {
-                if (biomImages[i] !== null && biomImages[i].complete && biomImages[i].naturalWidth > 0) {
-                    currentBiom = biomImages[i];
-                    break;
-                }
-            }
-        }
-    }, 5000);
 }
 
 function selectRandomBiom() {
@@ -3538,6 +3653,7 @@ function selectRandomBiom() {
     }
 }
 
+// ==================== ОБРАБОТЧИКИ СОБЫТИЙ ====================
 function handleKeyDown(e) {
     keys[e.key] = true;
     if(['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
@@ -3562,7 +3678,6 @@ function handleKeyDown(e) {
         e.preventDefault();
         performMelee();
     }
-    // СТРЕЛЬБА УБРАНА — F и C больше не стреляют
     
     if((e.key === 'r' || e.key === 'R') && !gameRunning) restartGame();
 }
@@ -3578,6 +3693,7 @@ canvas.addEventListener('mousedown', (e) => {
     } 
 });
 
+// ==================== МОБИЛЬНОЕ УПРАВЛЕНИЕ ====================
 function setupMobileControls(){
     const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
     if(isTouch || window.innerWidth <= 768){
@@ -3601,7 +3717,6 @@ function setupMobileControls(){
             attackBtn.addEventListener('touchstart', (e) => { e.preventDefault(); performMelee(); });
             attackBtn.addEventListener('mousedown', () => performMelee());
         }
-        // Кнопка стрельбы скрыта
         const shootBtn = document.getElementById('btnShoot');
         if(shootBtn) shootBtn.style.display = 'none';
     }
@@ -3619,6 +3734,7 @@ if(particlesToggle) particlesToggle.addEventListener('change', (e) => {
     if(!e.target.checked && particlePool) particlePool.releaseAll(); 
 });
 
+// ==================== СИСТЕМА МОДОВ ====================
 let installedMods = JSON.parse(localStorage.getItem('kolblocks_mods')) || [];
 
 function openModsMenu() {
@@ -3896,6 +4012,7 @@ function showMobileWarning() {
     });
 }
 
+// ==================== ИНИЦИАЛИЗАЦИЯ ====================
 async function initGame(){
     resizeCanvas();
     AudioSys.init();
@@ -3904,20 +4021,16 @@ async function initGame(){
     loadAuraImages();
     particlePool = new ObjectPool((x,y,c) => new Particle(x,y,c), CONFIG.particles.maxCount);
     
+    cacheUIElements();
+    loadAllData();
+    
+    unlockedSkins = DATA_CACHE.skins;
+    unlockedAuras = DATA_CACHE.auras;
+    unlockedTrails = DATA_CACHE.trails;
+    unlockedAccessories = DATA_CACHE.accessories;
+    
     cardCount = parseInt(localStorage.getItem('kolblocks_cards')) || 0;
     updateCardDisplay();
-    
-    installedMods = JSON.parse(localStorage.getItem('kolblocks_mods')) || [];
-    for (const mod of installedMods) {
-        if (mod.enabled) {
-            try {
-                const fn = new Function('CONFIG', mod.code);
-                fn(CONFIG);
-            } catch (err) {
-                console.error('Ошибка при загрузке мода "' + mod.name + '":', err);
-            }
-        }
-    }
     
     let progress = 0;
     const pi = setInterval(() => {
