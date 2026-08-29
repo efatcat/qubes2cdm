@@ -1,4 +1,4 @@
-// game.js - QUBES v2.3 - FULL OPTIMIZED WITH CACHE - FIXED EQUIP BUTTONS
+// game.js - QUBES v2.3 - NO CLASSES, NO ARCHER
 
 const CONFIG = {
     player: { width: 40, height: 40, speed: 6, jumpPower: 16, gravity: 0.8, friction: 0.85, dashSpeed: 20, dashDuration: 12, dashCooldown: 45, maxDashes: 2, doubleJump: true },
@@ -108,35 +108,28 @@ const PROMO_CODES = {
 let playerELO = parseInt(localStorage.getItem('kolblocks_elo')) || 0;
 let totalKeys = parseInt(localStorage.getItem('kolblocks_keys')) || 0;
 let cardCount = parseInt(localStorage.getItem('kolblocks_cards')) || 0;
-
-// КЭШИРОВАННЫЕ ДАННЫЕ
-const DATA_CACHE = {
-    skins: null,
-    auras: null,
-    trails: null,
-    accessories: null,
-    loaded: false
-};
-
-let unlockedSkins = ['default'];
-let unlockedAuras = [];
-let unlockedTrails = [];
-let unlockedAccessories = [];
+let unlockedSkins = JSON.parse(localStorage.getItem('kolblocks_skins')) || ['default'];
+let unlockedAuras = JSON.parse(localStorage.getItem('kolblocks_auras')) || [];
 let equippedSkin = localStorage.getItem('kolblocks_equipped') || 'default';
 let equippedAura = localStorage.getItem('kolblocks_equipped_aura') || null;
-let equippedTrail = localStorage.getItem('kolblocks_equipped_trail') || null;
-let equippedAccessory = localStorage.getItem('kolblocks_equipped_accessory') || null;
-let usedPromoCodes = JSON.parse(localStorage.getItem('kolblocks_used_promos')) || [];
-let playerNickname = localStorage.getItem('kolblocks_nickname') || '';
-
 let roundCoins = 0, roundDamage = 0;
 let lastKaleidoscopeColor = null;
 let lastKaleidoscopeDate = null;
+
+let unlockedTrails = JSON.parse(localStorage.getItem('kolblocks_trails')) || [];
+let equippedTrail = localStorage.getItem('kolblocks_equipped_trail') || null;
+
+let unlockedAccessories = JSON.parse(localStorage.getItem('kolblocks_accessories')) || [];
+let equippedAccessory = localStorage.getItem('kolblocks_equipped_accessory') || null;
+
+let usedPromoCodes = JSON.parse(localStorage.getItem('kolblocks_used_promos')) || [];
+let playerNickname = localStorage.getItem('kolblocks_nickname') || '';
 
 let batidaoImage = null;
 let cucumberImage = null;
 let explosionGif = null;
 let auraImagesLoaded = false;
+
 let activeAuraEffect = null;
 let gameLoopId = null;
 let activeTimeouts = [];
@@ -175,46 +168,6 @@ let levelKeys = [];
 const platformTextures = [ {color: '#FF2E63', pattern: 'stripes'}, {color: '#08D9D6', pattern: 'dots'}, {color: '#FFDE7D', pattern: 'checker'}, {color: '#6A2C70', pattern: 'zigzag'}, {color: '#4ECDC4', pattern: 'bricks'}, {color: '#FF9A76', pattern: 'waves'} ];
 const enemyColors = ['#FF2E63', '#FFDE7D', '#6A2C70', '#08D9D6', '#AA00FF'];
 const flyingEnemyColors = ['#FF00FF', '#00FFFF', '#FFFF00', '#FF6600'];
-
-// ==================== КЭШИРОВАНИЕ DOM-ЭЛЕМЕНТОВ ====================
-const UI_ELEMENTS = {};
-
-function cacheUIElements() {
-    UI_ELEMENTS.levelDisplay = document.getElementById('levelDisplay');
-    UI_ELEMENTS.scoreDisplay = document.getElementById('scoreDisplay');
-    UI_ELEMENTS.comboCount = document.getElementById('comboCount');
-    UI_ELEMENTS.eloValue = document.getElementById('eloValue');
-    UI_ELEMENTS.cardCountDisplay = document.getElementById('cardCountDisplay');
-    UI_ELEMENTS.healthFill = document.getElementById('healthFill');
-    UI_ELEMENTS.bossHealthFill = document.getElementById('bossHealthFill');
-    UI_ELEMENTS.dashIndicator = document.querySelectorAll('.dash-dot');
-    UI_ELEMENTS.checkpointIndicator = document.getElementById('checkpointIndicator');
-}
-
-// ==================== ЗАГРУЗКА ДАННЫХ В КЭШ ====================
-function loadAllData() {
-    if (DATA_CACHE.loaded) return;
-    
-    DATA_CACHE.skins = JSON.parse(localStorage.getItem('kolblocks_skins')) || ['default'];
-    DATA_CACHE.auras = JSON.parse(localStorage.getItem('kolblocks_auras')) || [];
-    DATA_CACHE.trails = JSON.parse(localStorage.getItem('kolblocks_trails')) || [];
-    DATA_CACHE.accessories = JSON.parse(localStorage.getItem('kolblocks_accessories')) || [];
-    DATA_CACHE.loaded = true;
-    
-    unlockedSkins = DATA_CACHE.skins;
-    unlockedAuras = DATA_CACHE.auras;
-    unlockedTrails = DATA_CACHE.trails;
-    unlockedAccessories = DATA_CACHE.accessories;
-    
-    console.log('✅ Данные загружены в кэш');
-}
-
-function updateCache() {
-    DATA_CACHE.skins = unlockedSkins;
-    DATA_CACHE.auras = unlockedAuras;
-    DATA_CACHE.trails = unlockedTrails;
-    DATA_CACHE.accessories = unlockedAccessories;
-}
 
 function clearKeys() {
     for (let key in keys) {
@@ -266,71 +219,21 @@ function clearAllTimeouts() {
 }
 
 function resizeCanvas(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;}
-
-function updateHealthBar(){
-    if (UI_ELEMENTS.healthFill) {
-        UI_ELEMENTS.healthFill.style.width = `${(playerHealth/maxHealth)*100}%`;
-    }
-}
-
-function updateBossHealth(){
-    if (boss && UI_ELEMENTS.bossHealthFill) {
-        const percent = (boss.health / boss.maxHealth) * 100;
-        UI_ELEMENTS.bossHealthFill.style.width = `${percent}%`;
-    }
-}
-
+function updateHealthBar(){document.getElementById('healthFill').style.width=`${(playerHealth/maxHealth)*100}%`;}
+function updateBossHealth(){if(boss){const percent=(boss.health/boss.maxHealth)*100;document.getElementById('bossHealthFill').style.width=`${percent}%`;}}
 function updateUI(){
-    if (UI_ELEMENTS.levelDisplay) UI_ELEMENTS.levelDisplay.textContent = currentLevel;
-    if (UI_ELEMENTS.scoreDisplay) UI_ELEMENTS.scoreDisplay.textContent = score;
-    if (UI_ELEMENTS.comboCount) UI_ELEMENTS.comboCount.textContent = `x${comboCount}`;
-    if (UI_ELEMENTS.eloValue) UI_ELEMENTS.eloValue.textContent = Math.floor(playerELO);
-    if (UI_ELEMENTS.cardCountDisplay) UI_ELEMENTS.cardCountDisplay.textContent = cardCount;
+    document.getElementById('levelDisplay').textContent=currentLevel;
+    document.getElementById('scoreDisplay').textContent=score;
+    document.getElementById('comboCount').textContent=`x${comboCount}`;
+    document.getElementById('eloValue').textContent = Math.floor(playerELO);
+    document.getElementById('cardCountDisplay').textContent = cardCount;
 }
-
-function addScore(points){score += Math.floor(points * comboMultiplier); updateUI();}
-
-function updateCombo(){
-    comboCount++;
-    comboTimer = CONFIG.combat.comboDecay;
-    comboMultiplier = 1 + (comboCount - 1) * 0.1;
-    maxCombo = Math.max(maxCombo, comboCount);
-    const cd = document.getElementById('comboDisplay');
-    if (cd) {
-        cd.classList.add('active');
-        document.getElementById('comboValue').textContent = comboCount;
-        safeTimeout(() => cd.classList.remove('active'), 1000);
-    }
-    if (comboCount >= 5) AudioSys.combo();
-}
-
-function decayCombo(){
-    if (comboTimer > 0) {
-        comboTimer--;
-        if (comboTimer <= 0) {
-            comboCount = 1;
-            comboMultiplier = 1;
-            updateUI();
-        }
-    }
-}
-
-function shakeScreen(intensity){screenShake = 20; shakeIntensity = intensity;}
-
-function updateDashIndicator(){
-    const dots = UI_ELEMENTS.dashIndicator || document.querySelectorAll('.dash-dot');
-    dots.forEach((dot, i) => {
-        dot.classList.toggle('active', i < player.dashCharges);
-    });
-}
-
-function showCheckpointIndicator(){
-    const ci = UI_ELEMENTS.checkpointIndicator || document.getElementById('checkpointIndicator');
-    if (ci) {
-        ci.classList.add('active');
-        safeTimeout(() => ci.classList.remove('active'), 2000);
-    }
-}
+function addScore(points){score+=Math.floor(points*comboMultiplier);updateUI();}
+function updateCombo(){comboCount++;comboTimer=CONFIG.combat.comboDecay;comboMultiplier=1+(comboCount-1)*0.1;maxCombo=Math.max(maxCombo,comboCount);const cd=document.getElementById('comboDisplay');cd.classList.add('active');document.getElementById('comboValue').textContent=comboCount;safeTimeout(()=>cd.classList.remove('active'),1000);if(comboCount>=5)AudioSys.combo();}
+function decayCombo(){if(comboTimer>0){comboTimer--;if(comboTimer<=0){comboCount=1;comboMultiplier=1;updateUI();}}}
+function shakeScreen(intensity){screenShake=20;shakeIntensity=intensity;}
+function updateDashIndicator(){const dots=document.querySelectorAll('.dash-dot');dots.forEach((dot,i)=>{dot.classList.toggle('active',i<player.dashCharges);});}
+function showCheckpointIndicator(){const ci=document.getElementById('checkpointIndicator');ci.classList.add('active');safeTimeout(()=>ci.classList.remove('active'),2000);}
 
 function getKaleidoscopeColor() {
     const now = new Date();
@@ -361,27 +264,20 @@ function saveAllData() {
     localStorage.setItem('kolblocks_equipped_accessory', equippedAccessory || '');
     localStorage.setItem('kolblocks_used_promos', JSON.stringify(usedPromoCodes));
     localStorage.setItem('kolblocks_nickname', playerNickname);
-    
-    updateCache();
 }
 
 function updateCardDisplay() {
     const cardSpan = document.getElementById('cardCountDisplay');
-    if (cardSpan) cardSpan.textContent = cardCount;
+    if(cardSpan) cardSpan.textContent = cardCount;
     const shopCardSpan = document.getElementById('shopCardCount');
-    if (shopCardSpan) shopCardSpan.textContent = cardCount;
+    if(shopCardSpan) shopCardSpan.textContent = cardCount;
     const craftCardSpan = document.getElementById('craftCardCount');
-    if (craftCardSpan) craftCardSpan.textContent = cardCount;
+    if(craftCardSpan) craftCardSpan.textContent = cardCount;
     const craftKeySpan = document.getElementById('craftKeyCount');
-    if (craftKeySpan) craftKeySpan.textContent = totalKeys;
+    if(craftKeySpan) craftKeySpan.textContent = totalKeys;
 }
 
-function updateEloDisplay() {
-    if (UI_ELEMENTS.eloValue) {
-        UI_ELEMENTS.eloValue.textContent = Math.floor(playerELO);
-    }
-}
-
+function updateEloDisplay() { document.getElementById('eloValue').textContent = Math.floor(playerELO); }
 function showEloChange(change) {
     const el = document.createElement('div');
     el.className = 'elo-change ' + (change >= 0 ? 'positive' : 'negative');
@@ -390,7 +286,6 @@ function showEloChange(change) {
     if (change >= 0) AudioSys.eloGain(); else AudioSys.eloLoss();
     safeTimeout(() => el.remove(), 1500);
 }
-
 function calculateEloChange() {
     const coinsBonus = Math.floor(roundCoins * CONFIG.elo.coinsMultiplier);
     const damagePenalty = Math.floor(roundDamage / CONFIG.elo.damageDivider);
@@ -402,44 +297,48 @@ function calculateEloChange() {
 
 function getSkinData(id) {
     const all = [{id:'default',name:'Стандарт',color:'#4af626'}, ...CHEST_SKINS, ...PAID_SKINS];
-    const skin = all.find(s => s.id === id) || all[0];
+    const skin = all.find(s=>s.id===id) || all[0];
     if (skin.id === 'kaleidoscope') skin.color = getKaleidoscopeColor();
     return skin;
 }
 
 function getAuraData(id) {
     if (!id) return null;
-    return AURA_SKINS.find(a => a.id === id) || null;
+    return AURA_SKINS.find(a=>a.id===id) || null;
 }
 
 function getTrailData(id) {
     if (!id) return null;
     const all = [...CASE_TRAILS, ...SPECIAL_TRAILS, ...PAID_TRAILS];
-    return all.find(t => t.id === id) || null;
+    return all.find(t=>t.id===id) || null;
+}
+
+function getEnemyMultiplier() {
+    return 1.0;
 }
 
 function openCardCraft() {
     clearKeys();
     gameRunning = false;
-    if (gameLoopId) cancelAnimationFrame(gameLoopId);
+    if(gameLoopId) cancelAnimationFrame(gameLoopId);
     document.getElementById('pauseMenu').style.display = 'none';
     document.getElementById('cardCraftScreen').style.display = 'flex';
     updateCardDisplay();
     
     const craftBtn = document.getElementById('craftBtn');
-    if (craftBtn) craftBtn.disabled = cardCount < 3;
+    if(craftBtn) craftBtn.disabled = cardCount < 3;
 }
 
 function closeCardCraft() {
     document.getElementById('cardCraftScreen').style.display = 'none';
     clearKeys();
     gameRunning = true;
-    if (gameLoopId) cancelAnimationFrame(gameLoopId);
+    if(gameLoopId) cancelAnimationFrame(gameLoopId);
     gameLoop();
 }
 
 function craftKeys() {
-    if (cardCount >= 3) {
+    if(cardCount >= 3) {
         cardCount -= 3;
         totalKeys += 1;
         saveAllData();
@@ -463,7 +362,7 @@ function craftKeys() {
         safeTimeout(() => msg.remove(), 1500);
         
         const craftBtn = document.getElementById('craftBtn');
-        if (craftBtn) craftBtn.disabled = cardCount < 3;
+        if(craftBtn) craftBtn.disabled = cardCount < 3;
         
         AudioSys.play(440, 0.2, 'sine', 0.2);
     }
@@ -698,11 +597,8 @@ class Player {
             const enemyCenterY = e.y + e.height/2;
             const dist = Math.hypot(centerX - enemyCenterX, centerY - enemyCenterY);
             if (dist < radius) {
-                for (let d = 0; d < damage; d++) {
-                    if (e.takeDamage()) {
-                        enemies = enemies.filter(x => x !== e);
-                        break;
-                    }
+                if (e.takeDamage()) {
+                    enemies = enemies.filter(x => x !== e);
                 }
                 hitSomething = true;
                 updateCombo();
@@ -717,11 +613,8 @@ class Player {
             const feCenterY = fe.y + fe.height/2;
             const dist = Math.hypot(centerX - feCenterX, centerY - feCenterY);
             if (dist < radius) {
-                for (let d = 0; d < damage; d++) {
-                    if (fe.takeDamage()) {
-                        flyingEnemies = flyingEnemies.filter(x => x !== fe);
-                        break;
-                    }
+                if (fe.takeDamage()) {
+                    flyingEnemies = flyingEnemies.filter(x => x !== fe);
                 }
                 hitSomething = true;
                 updateCombo();
@@ -736,11 +629,8 @@ class Player {
             const veCenterY = ve.y + ve.height/2;
             const dist = Math.hypot(centerX - veCenterX, centerY - veCenterY);
             if (dist < radius) {
-                for (let d = 0; d < damage; d++) {
-                    if (ve.takeDamage()) {
-                        vortexEnemies = vortexEnemies.filter(x => x !== ve);
-                        break;
-                    }
+                if (ve.takeDamage()) {
+                    vortexEnemies = vortexEnemies.filter(x => x !== ve);
                 }
                 hitSomething = true;
                 updateCombo();
@@ -753,12 +643,9 @@ class Player {
             const bossCenterY = boss.y + boss.height/2;
             const dist = Math.hypot(centerX - bossCenterX, centerY - bossCenterY);
             if (dist < radius + 15) {
-                for (let d = 0; d < damage; d++) {
-                    if (boss.takeDamage()) {
-                        boss = null;
-                        document.getElementById('bossHealthBar').style.display = 'none';
-                        break;
-                    }
+                if (boss.takeDamage()) {
+                    boss = null;
+                    document.getElementById('bossHealthBar').style.display = 'none';
                 }
                 hitSomething = true;
                 updateCombo();
@@ -2063,25 +1950,16 @@ class Boss {
     }
 }
 
-// ==================== ГЕНЕРАЦИЯ УРОВНЯ (ОПТИМИЗИРОВАННАЯ) ====================
 function generateLevel(level){ 
     platforms=[]; enemies=[]; flyingEnemies=[]; vortexEnemies=[]; coins=[]; powerUps=[]; levelKeys=[]; 
     roundCoins=0; roundDamage=0; 
     const minHeight=100,maxHeight=canvas.height-150; 
     
-    // УМЕНЬШАЕМ КОЛИЧЕСТВО ОБЪЕКТОВ
-    const platformCount = Math.min(
-        CONFIG.level.basePlatforms + Math.floor(level * CONFIG.level.platformGrowth),
-        25
-    ); 
-    const enemyCount = Math.min(
-        CONFIG.level.baseEnemies + Math.floor(level * CONFIG.level.enemyGrowth),
-        15
-    );
-    const flyingEnemyCount = Math.min(
-        Math.max(0, Math.floor(level / 3)),
-        3
-    );
+    const enemyMultiplier = 1.0;
+    const platformCount = CONFIG.level.basePlatforms + Math.floor(level * CONFIG.level.platformGrowth); 
+    const baseEnemyCount = CONFIG.level.baseEnemies + Math.floor(level * CONFIG.level.enemyGrowth);
+    const enemyCount = Math.floor(baseEnemyCount * enemyMultiplier);
+    const flyingEnemyCount = Math.max(0, Math.floor(level / 3 * enemyMultiplier));
     
     levelWidth = CONFIG.level.baseWidth + (level - 1) * CONFIG.level.widthGrowth; 
     platforms.push(new Platform(80, canvas.height - 200, 180, 0)); 
@@ -2364,255 +2242,49 @@ function unequipAccessory() {
     safeTimeout(() => msg.remove(), 1200);
 }
 
-// ==================== ОТРИСОВКА С КЭШИРОВАНИЕМ ====================
 function renderSkins() {
-    const g = document.getElementById('skinsGrid');
-    if (!g) return;
-    
-    const cacheKey = unlockedSkins.join(',');
-    if (g._cached === cacheKey) return;
-    
+    const g = document.getElementById('skinsGrid'); if(!g) return;
     g.innerHTML = '';
     const all = [{id:'default',name:'Стандарт',color:'#4af626'}, ...CHEST_SKINS];
     all.forEach(s => {
-        const u = unlockedSkins.includes(s.id);
-        const e = equippedSkin === s.id;
+        const u = unlockedSkins.includes(s.id), e = equippedSkin === s.id;
         let displayColor = s.color;
         if (s.id === 'kaleidoscope' && u) displayColor = getKaleidoscopeColor();
         if (s.id === 'blackghost' && u) displayColor = '#222222';
-        const d = document.createElement('div');
-        d.className = 'skin-item ' + (e ? 'equipped' : '') + (!u ? 'locked' : '');
+        const d = document.createElement('div'); d.className = 'skin-item ' + (e ? 'equipped' : '') + (!u ? 'locked' : '');
         d.innerHTML = '<div class="skin-preview" style="background:' + (u ? displayColor : '#333') + '"></div><span class="skin-name">' + s.name + '</span><button class="equip-btn" onclick="equipSkin(\'' + s.id + '\')" ' + (!u || e ? 'disabled' : '') + '>' + (e ? '✓ Выбран' : 'Выбрать') + '</button>';
         g.appendChild(d);
     });
-    
-    g._cached = cacheKey;
 }
 
 function renderAuras() {
-    const g = document.getElementById('aurasGrid');
-    if (!g) return;
-    
-    const cacheKey = unlockedAuras.join(',');
-    if (g._cached === cacheKey) return;
-    
+    const g = document.getElementById('aurasGrid'); if(!g) return;
     g.innerHTML = '';
     if (unlockedAuras.length === 0) {
         g.innerHTML = '<div style="color:#aaa; text-align:center; grid-column:1/-1;">Нет аур. Открывайте кейсы!</div>';
-        g._cached = cacheKey;
         return;
     }
     AURA_SKINS.forEach(a => {
-        const u = unlockedAuras.includes(a.id);
-        const e = equippedAura === a.id;
+        const u = unlockedAuras.includes(a.id), e = equippedAura === a.id;
         const d = document.createElement('div'); 
         d.className = 'skin-item ' + (e ? 'equipped' : '') + (!u ? 'locked' : '');
         d.innerHTML = '<div class="skin-preview" style="background:' + (u ? a.color : '#333') + '; box-shadow:0 0 10px ' + (u ? a.color : '#333') + ';"></div><span class="skin-name">' + a.name + '</span><button class="equip-btn" onclick="equipAura(\'' + a.id + '\')" ' + (!u || e ? 'disabled' : '') + '>' + (e ? '✓ Активирована' : 'Активировать') + '</button>';
         g.appendChild(d);
     });
-    
-    g._cached = cacheKey;
 }
 
-function renderTrails() {
-    const g = document.getElementById('trailsGrid');
-    if (!g) return;
-    
-    const cacheKey = unlockedTrails.join(',');
-    if (g._cached === cacheKey) return;
-    
-    g.innerHTML = '';
-    const allTrails = [...CASE_TRAILS, ...SPECIAL_TRAILS];
-    let anyOwned = false;
-    
-    allTrails.forEach(t => {
-        const u = unlockedTrails.includes(t.id);
-        if (!u) return;
-        anyOwned = true;
-        const e = equippedTrail === t.id;
-        const d = document.createElement('div');
-        d.className = 'skin-item ' + (e ? 'equipped' : '');
-        d.innerHTML = `
-            <div class="skin-preview" style="background:linear-gradient(135deg, ${t.color}, ${t.color}88); box-shadow:0 0 15px ${t.color};"></div>
-            <span class="skin-name">${t.name}</span>
-            ${t.description ? `<span class="skin-desc">${t.description}</span>` : ''}
-            <button class="equip-btn" onclick="equipTrail('${t.id}')" ${e ? 'disabled' : ''}>${e ? '✓ Активен' : 'Активировать'}</button>
-        `;
-        g.appendChild(d);
-    });
-    
-    if (!anyOwned) {
-        g.innerHTML = '<div style="color:#aaa; text-align:center; grid-column:1/-1;">Откройте трейлы в кейсе или через промокоды!</div>';
-    }
-    
-    g._cached = cacheKey;
-}
-
-function renderPaidTrails() {
-    const g = document.getElementById('paidTrailsGrid');
-    const title = document.getElementById('paidTrailsTitle');
-    if (!g || !title) return;
-    
-    if (!isBefore(AUG_31_2026)) {
-        title.style.display = 'none';
-        g.innerHTML = '<div style="color:#aaa; text-align:center; grid-column:1/-1;">Сезон платных трейлов завершён</div>';
-        return;
-    }
-    
-    const diff = AUG_31_2026 - new Date();
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    title.innerHTML = `💎 Платные трейлы (осталось ${days} дней):`;
-    
-    const cacheKey = unlockedTrails.join(',') + '-' + equippedTrail;
-    if (g._cached === cacheKey) return;
-    
-    g.innerHTML = '';
-    PAID_TRAILS.forEach(t => {
-        const u = unlockedTrails.includes(t.id);
-        const e = equippedTrail === t.id;
-        const d = document.createElement('div');
-        d.className = 'skin-item paid-skin ' + (e ? 'equipped' : '');
-        let btnHtml = '';
-        if (u) {
-            btnHtml = `<button class="equip-btn" onclick="equipTrail('${t.id}')" ${e ? 'disabled' : ''}>${e ? '✓ Активен' : 'Активировать'}</button>`;
-        } else {
-            btnHtml = `<button class="equip-btn buy-btn" onclick="buyTrail('${t.id}')">КУПИТЬ (${t.price} 🔑)</button>`;
-        }
-        d.innerHTML = `
-            <div class="skin-preview" style="background:linear-gradient(135deg, ${t.color}, ${t.color}88); box-shadow:0 0 15px ${t.color};"></div>
-            <span class="skin-name">${t.name}</span>
-            <span class="skin-desc">${t.description || ''}</span>
-            ${btnHtml}
-        `;
-        g.appendChild(d);
-    });
-    
-    g._cached = cacheKey;
-}
-
-function renderPaidSkins() {
-    const g = document.getElementById('paidSkinsGrid');
-    if (!g) return;
-    
-    const cacheKey = unlockedSkins.join(',') + '-' + equippedSkin;
-    if (g._cached === cacheKey) return;
-    
-    g.innerHTML = '';
-    PAID_SKINS.forEach(s => {
-        const u = unlockedSkins.includes(s.id);
-        const e = equippedSkin === s.id;
-        const d = document.createElement('div');
-        d.className = 'skin-item paid-skin ' + (e ? 'equipped' : '');
-        let btnHtml = '';
-        if (u) {
-            btnHtml = `<button class="equip-btn" onclick="equipSkin('${s.id}')" ${e ? 'disabled' : ''}>${e ? '✓ Выбран' : 'Выбрать'}</button>`;
-        } else {
-            btnHtml = `<button class="equip-btn buy-btn" onclick="buyPaidSkin('${s.id}')">КУПИТЬ (${s.price} 🔑)</button>`;
-        }
-        d.innerHTML = `
-            <div class="skin-preview" style="background:${s.color};"></div>
-            <span class="skin-name">${s.name}</span>
-            <span class="skin-desc">${s.description}</span>
-            ${btnHtml}
-        `;
-        g.appendChild(d);
-    });
-    
-    g._cached = cacheKey;
-}
-
-function renderAccessories() {
-    const g = document.getElementById('accessoriesGrid');
-    if (!g) return;
-    
-    const cacheKey = unlockedAccessories.join(',') + '-' + equippedAccessory;
-    if (g._cached === cacheKey) return;
-    
-    g.innerHTML = '';
-    ACCESSORIES.forEach(a => {
-        const u = unlockedAccessories.includes(a.id);
-        const e = equippedAccessory === a.id;
-        const d = document.createElement('div');
-        d.className = 'skin-item ' + (e ? 'equipped' : '') + (!u ? 'locked' : '');
-        
-        if (u) {
-            d.innerHTML = `
-                <div class="skin-preview" style="background:#00ccff; box-shadow:0 0 10px #00ccff;"></div>
-                <span class="skin-name">${a.name}</span>
-                <span class="skin-desc">${a.description}</span>
-                <button class="equip-btn" onclick="equipAccessory('${a.id}')" ${e ? 'disabled' : ''}>${e ? '✓ Активен' : 'Надеть'}</button>
-            `;
-        } else {
-            d.innerHTML = `
-                <div class="skin-preview" style="background:#333;"></div>
-                <span class="skin-name">🔒 ${a.name}</span>
-                <span class="skin-desc">${a.description}</span>
-                <button class="equip-btn" disabled>Получить</button>
-            `;
-        }
-        g.appendChild(d);
-    });
-    
-    if (unlockedAccessories.length === 0) {
-        g.innerHTML = '<div style="color:#aaa; text-align:center; grid-column:1/-1;">Нет доступных аксессуаров</div>';
-    }
-    
-    g._cached = cacheKey;
-}
-
-// ==================== ИСПРАВЛЕННЫЕ ФУНКЦИИ СМЕНЫ СКИНОВ/АУР ====================
 function equipSkin(id) {
-    if (unlockedSkins.includes(id)) { 
-        equippedSkin = id; 
-        saveAllData(); 
-        const g = document.getElementById('skinsGrid');
-        if (g) g._cached = null;
-        const g2 = document.getElementById('paidSkinsGrid');
-        if (g2) g2._cached = null;
-        renderSkins();
-        renderPaidSkins();
-    }
+    if (unlockedSkins.includes(id)) { equippedSkin = id; saveAllData(); renderSkins(); }
 }
 
 function equipAura(id) {
     if (unlockedAuras.includes(id)) { 
         equippedAura = equippedAura === id ? null : id; 
         saveAllData(); 
-        const g = document.getElementById('aurasGrid');
-        if (g) g._cached = null;
         renderAuras(); 
     }
 }
 
-function equipTrail(id) {
-    if (unlockedTrails.includes(id)) {
-        equippedTrail = id;
-        saveAllData();
-        const g = document.getElementById('trailsGrid');
-        if (g) g._cached = null;
-        const g2 = document.getElementById('paidTrailsGrid');
-        if (g2) g2._cached = null;
-        renderTrails();
-        renderPaidTrails();
-        updateUnequipButtons();
-        const trailData = getTrailData(equippedTrail);
-        const display = document.getElementById('currentTrailDisplay');
-        if (display) display.textContent = trailData ? trailData.name : 'Нет';
-    }
-}
-
-function equipAccessory(id) {
-    if (unlockedAccessories.includes(id)) {
-        equippedAccessory = id;
-        saveAllData();
-        const g = document.getElementById('accessoriesGrid');
-        if (g) g._cached = null;
-        renderAccessories();
-        updateUnequipButtons();
-    }
-}
-
-// ==================== ОСТАЛЬНЫЕ ФУНКЦИИ МАГАЗИНА ====================
 function openChest() {
     if (totalKeys < 10) { alert('Нужно минимум 10 ключей!'); return; }
     totalKeys -= 10; saveAllData(); 
@@ -2838,6 +2510,84 @@ function openTrailChest() {
     }, 1200);
 }
 
+function renderTrails() {
+    const g = document.getElementById('trailsGrid');
+    if (!g) return;
+    g.innerHTML = '';
+    
+    const allTrails = [...CASE_TRAILS, ...SPECIAL_TRAILS];
+    let anyOwned = false;
+    
+    allTrails.forEach(t => {
+        const u = unlockedTrails.includes(t.id);
+        if (!u) return;
+        anyOwned = true;
+        const e = equippedTrail === t.id;
+        const d = document.createElement('div');
+        d.className = 'skin-item ' + (e ? 'equipped' : '');
+        d.innerHTML = `
+            <div class="skin-preview" style="background:linear-gradient(135deg, ${t.color}, ${t.color}88); box-shadow:0 0 15px ${t.color};"></div>
+            <span class="skin-name">${t.name}</span>
+            ${t.description ? `<span class="skin-desc">${t.description}</span>` : ''}
+            <button class="equip-btn" onclick="equipTrail('${t.id}')" ${e ? 'disabled' : ''}>${e ? '✓ Активен' : 'Активировать'}</button>
+        `;
+        g.appendChild(d);
+    });
+    
+    if (!anyOwned) {
+        g.innerHTML = '<div style="color:#aaa; text-align:center; grid-column:1/-1;">Откройте трейлы в кейсе или через промокоды!</div>';
+    }
+}
+
+function renderPaidTrails() {
+    const g = document.getElementById('paidTrailsGrid');
+    const title = document.getElementById('paidTrailsTitle');
+    if (!g || !title) return;
+    g.innerHTML = '';
+    
+    if (!isBefore(AUG_31_2026)) {
+        title.style.display = 'none';
+        g.innerHTML = '<div style="color:#aaa; text-align:center; grid-column:1/-1;">Сезон платных трейлов завершён</div>';
+        return;
+    }
+    
+    const diff = AUG_31_2026 - new Date();
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    title.innerHTML = `💎 Платные трейлы (осталось ${days} дней):`;
+    
+    PAID_TRAILS.forEach(t => {
+        const u = unlockedTrails.includes(t.id);
+        const e = equippedTrail === t.id;
+        const d = document.createElement('div');
+        d.className = 'skin-item paid-skin ' + (e ? 'equipped' : '');
+        let btnHtml = '';
+        if (u) {
+            btnHtml = `<button class="equip-btn" onclick="equipTrail('${t.id}')" ${e ? 'disabled' : ''}>${e ? '✓ Активен' : 'Активировать'}</button>`;
+        } else {
+            btnHtml = `<button class="equip-btn buy-btn" onclick="buyTrail('${t.id}')">КУПИТЬ (${t.price} 🔑)</button>`;
+        }
+        d.innerHTML = `
+            <div class="skin-preview" style="background:linear-gradient(135deg, ${t.color}, ${t.color}88); box-shadow:0 0 15px ${t.color};"></div>
+            <span class="skin-name">${t.name}</span>
+            <span class="skin-desc">${t.description || ''}</span>
+            ${btnHtml}
+        `;
+        g.appendChild(d);
+    });
+}
+
+function equipTrail(id) {
+    if (unlockedTrails.includes(id)) {
+        equippedTrail = id;
+        saveAllData();
+        renderTrails();
+        renderPaidTrails();
+        updateUnequipButtons();
+        const trailData = getTrailData(equippedTrail);
+        document.getElementById('currentTrailDisplay').textContent = trailData ? trailData.name : 'Нет';
+    }
+}
+
 function buyTrail(id) {
     const trail = PAID_TRAILS.find(t => t.id === id);
     if (!trail) return;
@@ -2872,6 +2622,66 @@ function buyTrail(id) {
     safeTimeout(() => msg.remove(), 2000);
 }
 
+function renderPaidSkins() {
+    const g = document.getElementById('paidSkinsGrid');
+    if (!g) return;
+    g.innerHTML = '';
+    
+    PAID_SKINS.forEach(s => {
+        const u = unlockedSkins.includes(s.id);
+        const e = equippedSkin === s.id;
+        const d = document.createElement('div');
+        d.className = 'skin-item paid-skin ' + (e ? 'equipped' : '');
+        let btnHtml = '';
+        if (u) {
+            btnHtml = `<button class="equip-btn" onclick="equipSkin('${s.id}')" ${e ? 'disabled' : ''}>${e ? '✓ Выбран' : 'Выбрать'}</button>`;
+        } else {
+            btnHtml = `<button class="equip-btn buy-btn" onclick="buyPaidSkin('${s.id}')">КУПИТЬ (${s.price} 🔑)</button>`;
+        }
+        d.innerHTML = `
+            <div class="skin-preview" style="background:${s.color};"></div>
+            <span class="skin-name">${s.name}</span>
+            <span class="skin-desc">${s.description}</span>
+            ${btnHtml}
+        `;
+        g.appendChild(d);
+    });
+}
+
+function renderAccessories() {
+    const g = document.getElementById('accessoriesGrid');
+    if (!g) return;
+    g.innerHTML = '';
+    
+    ACCESSORIES.forEach(a => {
+        const u = unlockedAccessories.includes(a.id);
+        const e = equippedAccessory === a.id;
+        const d = document.createElement('div');
+        d.className = 'skin-item ' + (e ? 'equipped' : '') + (!u ? 'locked' : '');
+        
+        if (u) {
+            d.innerHTML = `
+                <div class="skin-preview" style="background:#00ccff; box-shadow:0 0 10px #00ccff;"></div>
+                <span class="skin-name">${a.name}</span>
+                <span class="skin-desc">${a.description}</span>
+                <button class="equip-btn" onclick="equipAccessory('${a.id}')" ${e ? 'disabled' : ''}>${e ? '✓ Активен' : 'Надеть'}</button>
+            `;
+        } else {
+            d.innerHTML = `
+                <div class="skin-preview" style="background:#333;"></div>
+                <span class="skin-name">🔒 ${a.name}</span>
+                <span class="skin-desc">${a.description}</span>
+                <button class="equip-btn" disabled>Получить</button>
+            `;
+        }
+        g.appendChild(d);
+    });
+    
+    if (unlockedAccessories.length === 0) {
+        g.innerHTML = '<div style="color:#aaa; text-align:center; grid-column:1/-1;">Нет доступных аксессуаров</div>';
+    }
+}
+
 function buyPaidSkin(id) {
     const skin = PAID_SKINS.find(s => s.id === id);
     if (!skin) return;
@@ -2897,6 +2707,15 @@ function buyPaidSkin(id) {
     msg.style.cssText = `position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);color:${skin.color};font-size:24px;font-weight:bold;background:rgba(0,0,0,0.9);padding:15px 30px;border-radius:15px;border:2px solid ${skin.color};z-index:1000;`;
     document.body.appendChild(msg);
     safeTimeout(() => msg.remove(), 2000);
+}
+
+function equipAccessory(id) {
+    if (unlockedAccessories.includes(id)) {
+        equippedAccessory = id;
+        saveAllData();
+        renderAccessories();
+        updateUnequipButtons();
+    }
 }
 
 function openPromoCode() {
@@ -3007,7 +2826,6 @@ function openProfile() {
     
     document.getElementById('profileKeys').textContent = totalKeys;
     document.getElementById('profileElo').textContent = Math.floor(playerELO);
-    document.getElementById('profileClass').textContent = 'Нет (стандарт)';
     
     const skinData = getSkinData(equippedSkin);
     document.getElementById('profileSkin').textContent = skinData ? skinData.name : 'Стандарт';
@@ -3118,45 +2936,45 @@ function loadAuraImages() {
     
     cucumberImage = new Image();
     cucumberImage.crossOrigin = 'anonymous';
-    cucumberImage.onload = () => { 
+    cucumberImage.onload = () => {
         console.log('✅ Огурец загружен');
-        checkAllLoaded(); 
+        checkAllLoaded();
     };
-    cucumberImage.onerror = () => { 
-        console.warn('⚠️ Огурец не загружен');
-        cucumberImage = null; 
-        checkAllLoaded(); 
+    cucumberImage.onerror = () => {
+        console.error('❌ Не удалось загрузить огурец');
+        cucumberImage = null;
+        checkAllLoaded();
     };
     cucumberImage.src = 'ogurec.webp';
     
     batidaoImage = new Image();
     batidaoImage.crossOrigin = 'anonymous';
-    batidaoImage.onload = () => { 
+    batidaoImage.onload = () => {
         console.log('✅ Батидао загружен');
-        checkAllLoaded(); 
+        checkAllLoaded();
     };
-    batidaoImage.onerror = () => { 
-        console.warn('⚠️ Батидао не загружен');
-        batidaoImage = null; 
-        checkAllLoaded(); 
+    batidaoImage.onerror = () => {
+        console.error('❌ Не удалось загрузить батидао');
+        batidaoImage = null;
+        checkAllLoaded();
     };
     batidaoImage.src = 'batidao.png';
     
     explosionGif = new Image();
     explosionGif.crossOrigin = 'anonymous';
-    explosionGif.onload = () => { 
+    explosionGif.onload = () => {
         console.log('✅ Взрыв загружен');
-        checkAllLoaded(); 
+        checkAllLoaded();
     };
-    explosionGif.onerror = () => { 
-        console.warn('⚠️ Взрыв не загружен');
-        explosionGif = null; 
-        checkAllLoaded(); 
+    explosionGif.onerror = () => {
+        console.error('❌ Не удалось загрузить взрыв');
+        explosionGif = null;
+        checkAllLoaded();
     };
     explosionGif.src = 'vzryv.gif';
 }
 
-// ==================== ПОКАЗ АУР ====================
+// ==================== АУРЫ (ВОССТАНОВЛЕННЫЙ "ТУМАН") ====================
 function showAuraEffectOnPlayer(x, y, aura) {
     if(activeAuraEffect) { 
         activeAuraEffect.remove(); 
@@ -3174,9 +2992,10 @@ function showAuraEffectOnPlayer(x, y, aura) {
     effect.style.width = '300px';
     effect.style.height = '300px';
     
+    // БАТИДАО
     if(aura.id === 'batidao_aura') {
         effect.style.background = `radial-gradient(circle, ${aura.effectColor} 0%, transparent 70%)`;
-        if(batidaoImage && batidaoImage.complete && batidaoImage.naturalWidth > 0) {
+        if(batidaoImage) {
             effect.style.backgroundImage = `url(${batidaoImage.src})`;
             effect.style.backgroundSize = 'cover';
             effect.style.backgroundPosition = 'center';
@@ -3202,14 +3021,13 @@ function showAuraEffectOnPlayer(x, y, aura) {
             }, i * 10);
         }
     }
-    else if(aura.id === 'explosion_aura') {
+    // ВЗРЫВ
+    else if(aura.id === 'explosion_aura' && explosionGif) {
         effect.style.background = `radial-gradient(circle, #ff0000, #ff6600, #ffff00, transparent)`;
-        if(explosionGif && explosionGif.complete && explosionGif.naturalWidth > 0) {
-            effect.style.backgroundImage = `url(${explosionGif.src})`;
-            effect.style.backgroundSize = 'cover';
-            effect.style.backgroundPosition = 'center';
-            effect.style.backgroundBlend = 'overlay';
-        }
+        effect.style.backgroundImage = `url(${explosionGif.src})`;
+        effect.style.backgroundSize = 'cover';
+        effect.style.backgroundPosition = 'center';
+        effect.style.backgroundBlend = 'overlay';
         effect.style.boxShadow = `0 0 80px #ff0000, 0 0 120px #ff6600`;
         effect.style.animation = 'explosionAuraPlayer 0.6s ease-out forwards';
         effect.style.width = '400px';
@@ -3234,14 +3052,13 @@ function showAuraEffectOnPlayer(x, y, aura) {
             }, i * 8);
         }
     }
-    else if(aura.id === 'cucumber_aura') {
+    // ОГУРЕЦ
+    else if(aura.id === 'cucumber_aura' && cucumberImage) {
         effect.style.background = `radial-gradient(circle, ${aura.effectColor} 0%, transparent 70%)`;
-        if(cucumberImage && cucumberImage.complete && cucumberImage.naturalWidth > 0) {
-            effect.style.backgroundImage = `url(${cucumberImage.src})`;
-            effect.style.backgroundSize = 'cover';
-            effect.style.backgroundPosition = 'center';
-            effect.style.backgroundBlend = 'overlay';
-        }
+        effect.style.backgroundImage = `url(${cucumberImage.src})`;
+        effect.style.backgroundSize = 'cover';
+        effect.style.backgroundPosition = 'center';
+        effect.style.backgroundBlend = 'overlay';
         effect.style.boxShadow = `0 0 50px ${aura.color}, 0 0 80px ${aura.color}`;
         effect.style.animation = 'cucumberAuraPlayer 0.5s ease-out forwards';
         for (let i = 0; i < 25; i++) {
@@ -3262,6 +3079,7 @@ function showAuraEffectOnPlayer(x, y, aura) {
             }, i * 12);
         }
     }
+    // ПОДСОЛНЕЧНАЯ
     else if(aura.id === 'sunflower_aura') {
         effect.style.background = `radial-gradient(circle, ${aura.effectColor} 0%, #FFD700 30%, transparent 70%)`;
         effect.style.boxShadow = `0 0 50px ${aura.color}, 0 0 80px #FFA500`;
@@ -3285,6 +3103,7 @@ function showAuraEffectOnPlayer(x, y, aura) {
             }, i * 15);
         }
     }
+    // ВИШНЁВАЯ
     else if(aura.id === 'cherry_aura') {
         effect.style.background = `radial-gradient(circle, #ff3366, #ff6699, transparent)`;
         effect.style.boxShadow = `0 0 40px #ff3366`;
@@ -3306,6 +3125,7 @@ function showAuraEffectOnPlayer(x, y, aura) {
             }, i * 10);
         }
     }
+    // ЛАВАНДОВАЯ
     else if(aura.id === 'lavender_aura') {
         effect.style.background = `radial-gradient(circle, #E6E6FA, #D8BFD8, transparent)`;
         effect.style.boxShadow = `0 0 40px #D8BFD8`;
@@ -3327,6 +3147,7 @@ function showAuraEffectOnPlayer(x, y, aura) {
             }, i * 15);
         }
     }
+    // РОЗОВАЯ
     else if(aura.id === 'rose_aura') {
         effect.style.background = `radial-gradient(circle, #FF69B4, #FF1493, transparent)`;
         effect.style.boxShadow = `0 0 40px #FF69B4`;
@@ -3348,6 +3169,7 @@ function showAuraEffectOnPlayer(x, y, aura) {
             }, i * 15);
         }
     }
+    // ВЕСЕННЯЯ
     else if(aura.id === 'spring_aura') {
         effect.style.background = `radial-gradient(circle, #00FA9A, #3CB371, transparent)`;
         effect.style.boxShadow = `0 0 40px #00FA9A`;
@@ -3369,6 +3191,7 @@ function showAuraEffectOnPlayer(x, y, aura) {
             }, i * 10);
         }
     }
+    // ОСТАЛЬНЫЕ
     else {
         effect.style.background = `radial-gradient(circle, ${aura.effectColor}, transparent)`;
         effect.style.boxShadow = `0 0 40px ${aura.color}`;
@@ -3377,10 +3200,14 @@ function showAuraEffectOnPlayer(x, y, aura) {
     
     document.body.appendChild(effect);
     activeAuraEffect = effect;
-    safeTimeout(() => { if(activeAuraEffect) { activeAuraEffect.remove(); activeAuraEffect = null; } }, 500);
+    safeTimeout(() => { 
+        if(activeAuraEffect) { 
+            activeAuraEffect.remove(); 
+            activeAuraEffect = null; 
+        } 
+    }, 500);
 }
 
-// ==================== ОСНОВНОЙ ЦИКЛ ИГРЫ ====================
 function gameLoop(){
     if(!gameRunning) return;
     
@@ -3436,88 +3263,54 @@ function gameLoop(){
     gameLoopId = requestAnimationFrame(gameLoop);
 }
 
-// ==================== ОПТИМИЗИРОВАННЫЙ ПЕРЕХОД УРОВНЯ (БЕЗ ЗАВИСАНИЙ) ====================
-function completeLevel() {
+function completeLevel(){
     if (inputBlocked) return;
     inputBlocked = true;
     
-    gameRunning = false;
-    if (gameLoopId) cancelAnimationFrame(gameLoopId);
-    
-    // ПОКАЗЫВАЕМ ЭКРАН ЗАВЕРШЕНИЯ СРАЗУ
+    gameRunning=false;
+    if(gameLoopId) cancelAnimationFrame(gameLoopId);
+    AudioSys.levelComplete();
+    changeBiom();
+    addScore(1000*currentLevel);
+    const eloResult = calculateEloChange();
+    const ls = document.getElementById('levelScore');
+    if(ls) ls.textContent=Math.floor(1000*currentLevel*comboMultiplier);
+    const mc = document.getElementById('maxCombo');
+    if(mc) mc.textContent=`x${maxCombo}`;
+    const cc = document.getElementById('coinsCollected');
+    if(cc) cc.textContent = roundCoins;
+    const dt = document.getElementById('damageTaken');
+    if(dt) dt.textContent = roundDamage;
+    const eloChangeEl = document.getElementById('eloChangeDisplay');
+    if(eloChangeEl) {
+        eloChangeEl.textContent = (eloResult.change >= 0 ? '+' : '') + eloResult.change;
+        eloChangeEl.style.color = eloResult.change >= 0 ? '#4af626' : '#ff2e63';
+    }
     const lcDiv = document.getElementById('levelComplete');
-    if (lcDiv) lcDiv.style.display = 'flex';
-    
-    // ВСЕ ТЯЖЁЛЫЕ ОПЕРАЦИИ — С ЗАДЕРЖКОЙ
-    setTimeout(() => {
-        AudioSys.levelComplete();
-        changeBiom();
-        addScore(1000 * currentLevel);
+    if(lcDiv) lcDiv.style.display='flex';
+    showEloChange(eloResult.change);
+    for(let i=0;i<80;i++) particlePool.acquire(player.x+player.width/2,player.y+player.height/2,platformTextures[Math.floor(Math.random()*platformTextures.length)].color);
+    safeTimeout(()=>{
+        const lcDiv2 = document.getElementById('levelComplete');
+        if(lcDiv2) lcDiv2.style.display='none';
+        currentLevel++;
+        generateLevel(currentLevel);
+        player.reset();
+        playerHealth = maxHealth;
+        updateHealthBar();
+        cameraX=0;
+        comboCount=1;
+        comboMultiplier=1;
+        maxCombo=1;
+        lastCheckpointX=0;
+        updateUI();
+        updateDashIndicator();
+        updateEloDisplay();
         
-        const levelScore = Math.floor(1000 * currentLevel * comboMultiplier);
-        const eloResult = calculateEloChange();
-        
-        // ОБНОВЛЯЕМ UI
-        const ls = document.getElementById('levelScore');
-        if (ls) ls.textContent = levelScore;
-        const mc = document.getElementById('maxCombo');
-        if (mc) mc.textContent = `x${maxCombo}`;
-        const cc = document.getElementById('coinsCollected');
-        if (cc) cc.textContent = roundCoins;
-        const dt = document.getElementById('damageTaken');
-        if (dt) dt.textContent = roundDamage;
-        const eloChangeEl = document.getElementById('eloChangeDisplay');
-        if (eloChangeEl) {
-            eloChangeEl.textContent = (eloResult.change >= 0 ? '+' : '') + eloResult.change;
-            eloChangeEl.style.color = eloResult.change >= 0 ? '#4af626' : '#ff2e63';
-        }
-        
-        showEloChange(eloResult.change);
-        
-        // ЧАСТИЦЫ — МЕЛКИМИ ПОРЦИЯМИ
-        let particlesSpawned = 0;
-        const maxParticles = 25;
-        const playerX = player.x + player.width / 2;
-        const playerY = player.y + player.height / 2;
-        
-        function spawnParticle() {
-            if (particlesSpawned >= maxParticles) {
-                // ГЕНЕРИРУЕМ НОВЫЙ УРОВЕНЬ
-                setTimeout(() => {
-                    currentLevel++;
-                    generateLevel(currentLevel);
-                    player.reset();
-                    playerHealth = maxHealth;
-                    updateHealthBar();
-                    cameraX = 0;
-                    comboCount = 1;
-                    comboMultiplier = 1;
-                    maxCombo = 1;
-                    lastCheckpointX = 0;
-                    updateUI();
-                    updateDashIndicator();
-                    updateEloDisplay();
-                    
-                    const lcDiv2 = document.getElementById('levelComplete');
-                    if (lcDiv2) lcDiv2.style.display = 'none';
-                    
-                    inputBlocked = false;
-                    gameRunning = true;
-                    gameLoop();
-                }, 80);
-                return;
-            }
-            
-            particlePool.acquire(
-                playerX + (Math.random() - 0.5) * 20,
-                playerY + (Math.random() - 0.5) * 20,
-                platformTextures[Math.floor(Math.random() * platformTextures.length)].color
-            );
-            particlesSpawned++;
-            setTimeout(spawnParticle, 5);
-        }
-        spawnParticle();
-    }, 150);
+        inputBlocked = false;
+        gameRunning=true;
+        gameLoop();
+    },2500);
 }
 
 function gameOver(){
@@ -3601,89 +3394,60 @@ function performMelee(){
     if(gameRunning && player) player.meleeAttack();
 }
 
-// ==================== БИОМЫ (ОПТИМИЗИРОВАННАЯ ЗАГРУЗКА) ====================
 function changeBiom() {
-    let loadedBiom = null;
+    if (!biomLoaded && biomLoadingStarted) return;
+    const validIndices = [];
     for (let i = 0; i < biomImages.length; i++) {
-        if (biomImages[i] !== null && biomImages[i].complete && biomImages[i].naturalWidth > 0) {
-            loadedBiom = biomImages[i];
-            break;
-        }
+        if (biomImages[i] !== null && biomImages[i].complete && biomImages[i].naturalWidth > 0) validIndices.push(i);
     }
-    
-    if (loadedBiom) {
-        currentBiom = loadedBiom;
-        return;
+    if (validIndices.length > 0) {
+        const randomIndex = validIndices[Math.floor(Math.random() * validIndices.length)];
+        currentBiom = biomImages[randomIndex];
+    } else if (BUILTIN_BIOMS.length > 0) {
+        const randomBiom = BUILTIN_BIOMS[Math.floor(Math.random() * BUILTIN_BIOMS.length)];
+        currentBiom = randomBiom;
     }
-    
-    const randomBiom = BUILTIN_BIOMS[Math.floor(Math.random() * BUILTIN_BIOMS.length)];
-    currentBiom = randomBiom;
 }
 
 function startAsyncBiomLoading() {
     if (biomLoadingStarted) return;
     biomLoadingStarted = true;
-    
-    // ЗАГРУЖАЕМ ТОЛЬКО 10 ФАЙЛОВ (вместо 50+)
     const possibleFiles = [];
-    for (let i = 1; i <= 10; i++) {
+    for (let i = 1; i <= 50; i++) {
         possibleFiles.push(`bioms/biom${i}.png`);
         possibleFiles.push(`bioms/biom${i}.jpg`);
     }
-    
-    const namedFiles = ['forest', 'cave', 'mountain', 'volcano', 'ice', 'swamp', 'jungle', 'ruins'];
+    const namedFiles = ['forest', 'cave', 'mountain', 'volcano', 'ice', 'swamp', 'jungle', 'ruins', 'temple', 'waterfall', 'cliffs', 'valley', 'desert', 'snow', 'lava', 'abyss', 'sky', 'ocean'];
     for (const name of namedFiles) {
         possibleFiles.push(`bioms/${name}.png`);
         possibleFiles.push(`bioms/${name}.jpg`);
+        possibleFiles.push(`bioms/${name}.webp`);
     }
-    
     let loadedCount = 0;
     let totalToLoad = possibleFiles.length;
     biomImages = new Array(totalToLoad);
     biomFileNames = new Array(totalToLoad);
-    
     function checkComplete() {
         loadedCount++;
         if (loadedCount >= totalToLoad) {
             const validCount = biomFileNames.filter(f => f !== null).length;
-            console.log(`✅ Загружено биомов: ${validCount} шт. из ${totalToLoad}`);
+            console.log(`Загружено биомов: ${validCount} шт.`);
             biomLoaded = true;
-            changeBiom();
+            selectRandomBiom();
         }
     }
-    
     possibleFiles.forEach((file, index) => {
         const img = new Image();
-        img.onload = () => { 
-            biomImages[index] = img; 
-            biomFileNames[index] = file; 
-            checkComplete(); 
-        };
-        img.onerror = () => { 
-            biomImages[index] = null; 
-            biomFileNames[index] = null; 
-            checkComplete(); 
-        };
+        img.onload = () => { biomImages[index] = img; biomFileNames[index] = file; checkComplete(); };
+        img.onerror = () => { biomImages[index] = null; biomFileNames[index] = null; checkComplete(); };
         img.src = file;
     });
-    
-    // ЕСЛИ ЗАГРУЗКА ЗАТЯНУЛАСЬ — ЧЕРЕЗ 2 СЕКУНДЫ ПОКАЗЫВАЕМ ВСТРОЕННЫЙ
-    setTimeout(() => {
-        if (!biomLoaded) {
-            console.log('⏱️ Таймаут загрузки биомов, показываем встроенный');
-            const randomBiom = BUILTIN_BIOMS[Math.floor(Math.random() * BUILTIN_BIOMS.length)];
-            currentBiom = randomBiom;
-            biomLoaded = true;
-        }
-    }, 2000);
 }
 
 function selectRandomBiom() {
     const validIndices = [];
     for (let i = 0; i < biomImages.length; i++) {
-        if (biomImages[i] !== null && biomImages[i].complete && biomImages[i].naturalWidth > 0) {
-            validIndices.push(i);
-        }
+        if (biomImages[i] !== null && biomImages[i].complete && biomImages[i].naturalWidth > 0) validIndices.push(i);
     }
     if (validIndices.length > 0) {
         const randomIndex = validIndices[Math.floor(Math.random() * validIndices.length)];
@@ -3694,19 +3458,20 @@ function selectRandomBiom() {
     }
 }
 
-// ==================== ОБРАБОТЧИКИ СОБЫТИЙ ====================
 function handleKeyDown(e) {
     keys[e.key] = true;
     if(['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
     
     if(e.key === 'p' || e.key === 'P' || e.key === 'Escape'){
         e.preventDefault();
+        
         const levelComplete = document.getElementById('levelComplete');
         const gameOverScreen = document.getElementById('gameOver');
         if ((levelComplete && levelComplete.style.display === 'flex') || 
             (gameOverScreen && gameOverScreen.style.display === 'flex')) {
             return;
         }
+        
         if (!closeCurrentMenu()) {
             showPauseMenu();
         }
@@ -3719,7 +3484,6 @@ function handleKeyDown(e) {
         e.preventDefault();
         performMelee();
     }
-    
     if((e.key === 'r' || e.key === 'R') && !gameRunning) restartGame();
 }
 
@@ -3734,7 +3498,6 @@ canvas.addEventListener('mousedown', (e) => {
     } 
 });
 
-// ==================== МОБИЛЬНОЕ УПРАВЛЕНИЕ ====================
 function setupMobileControls(){
     const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
     if(isTouch || window.innerWidth <= 768){
@@ -3758,8 +3521,6 @@ function setupMobileControls(){
             attackBtn.addEventListener('touchstart', (e) => { e.preventDefault(); performMelee(); });
             attackBtn.addEventListener('mousedown', () => performMelee());
         }
-        const shootBtn = document.getElementById('btnShoot');
-        if(shootBtn) shootBtn.style.display = 'none';
     }
 }
 
@@ -3775,7 +3536,6 @@ if(particlesToggle) particlesToggle.addEventListener('change', (e) => {
     if(!e.target.checked && particlePool) particlePool.releaseAll(); 
 });
 
-// ==================== СИСТЕМА МОДОВ ====================
 let installedMods = JSON.parse(localStorage.getItem('kolblocks_mods')) || [];
 
 function openModsMenu() {
@@ -3816,17 +3576,23 @@ function installMod() {
                         alert('❌ Ошибка: неверное кодовое слово!\nМод не будет установлен.');
                         return;
                     }
+                    
                     const exists = installedMods.some(m => m.name === modData.name);
                     if (exists) {
                         alert('❌ Мод с таким названием уже установлен!');
                         return;
                     }
+                    
                     modData.id = Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
                     modData.enabled = true;
                     installedMods.push(modData);
                     saveMods();
                     renderModsList();
-                    if (modData.enabled) applyMod(modData);
+                    
+                    if (modData.enabled) {
+                        applyMod(modData);
+                    }
+                    
                     showModMessage('✅ Мод "' + modData.name + '" успешно установлен!');
                 }
             } catch (err) {
@@ -3842,18 +3608,35 @@ function installMod() {
 
 function parseModFile(content) {
     const lines = content.split('\n');
-    const mod = { avatar: '', name: 'Без названия', author: 'Неизвестен', codeword: '', code: '' };
+    const mod = {
+        avatar: '',
+        name: 'Без названия',
+        author: 'Неизвестен',
+        codeword: '',
+        code: ''
+    };
+    
     let codeStart = false;
     let codeLines = [];
+    
     for (let line of lines) {
         line = line.trim();
-        if (line.startsWith('AVATAR:')) mod.avatar = line.substring(7).trim();
-        else if (line.startsWith('NAME:')) mod.name = line.substring(5).trim();
-        else if (line.startsWith('AUTHOR:')) mod.author = line.substring(7).trim();
-        else if (line.startsWith('CODEWORD:')) mod.codeword = line.substring(9).trim();
-        else if (line === '// Код мода (JavaScript)' || line === '// КОД МОДА') codeStart = true;
-        else if (codeStart) codeLines.push(line);
+        
+        if (line.startsWith('AVATAR:')) {
+            mod.avatar = line.substring(7).trim();
+        } else if (line.startsWith('NAME:')) {
+            mod.name = line.substring(5).trim();
+        } else if (line.startsWith('AUTHOR:')) {
+            mod.author = line.substring(7).trim();
+        } else if (line.startsWith('CODEWORD:')) {
+            mod.codeword = line.substring(9).trim();
+        } else if (line === '// Код мода (JavaScript)' || line === '// КОД МОДА') {
+            codeStart = true;
+        } else if (codeStart) {
+            codeLines.push(line);
+        }
     }
+    
     if (codeLines.length === 0) {
         let found = false;
         for (let line of lines) {
@@ -3864,14 +3647,19 @@ function parseModFile(content) {
                     codeLines.push(line);
                 }
             }
-            if (line.startsWith('CODEWORD:')) found = true;
+            if (line.startsWith('CODEWORD:')) {
+                found = true;
+            }
         }
     }
+    
     mod.code = codeLines.join('\n');
+    
     if (!mod.codeword) {
         alert('❌ Ошибка: в файле отсутствует CODEWORD!');
         return null;
     }
+    
     return mod;
 }
 
@@ -3889,9 +3677,11 @@ function applyMod(modData) {
 function toggleMod(id) {
     const mod = installedMods.find(m => m.id === id);
     if (!mod) return;
+    
     mod.enabled = !mod.enabled;
     saveMods();
     renderModsList();
+    
     if (mod.enabled) {
         applyMod(mod);
         showModMessage('✅ Мод "' + mod.name + '" включён!');
@@ -3905,6 +3695,7 @@ function toggleMod(id) {
 
 function deleteMod(id) {
     if (!confirm('Удалить этот мод?')) return;
+    
     const mod = installedMods.find(m => m.id === id);
     installedMods = installedMods.filter(m => m.id !== id);
     saveMods();
@@ -3919,17 +3710,22 @@ function saveMods() {
 function renderModsList() {
     const container = document.getElementById('modsList');
     const countSpan = document.getElementById('modsCount');
+    
     if (!container) return;
+    
     if (installedMods.length === 0) {
         container.innerHTML = '<div style="color:#888; text-align:center; padding:20px;">Нет установленных модов</div>';
         if (countSpan) countSpan.textContent = '0';
         return;
     }
+    
     if (countSpan) countSpan.textContent = installedMods.length;
+    
     container.innerHTML = '';
     installedMods.forEach(mod => {
         const div = document.createElement('div');
         div.className = 'mod-item' + (mod.enabled ? ' active' : '');
+        
         const avatarImg = document.createElement('img');
         avatarImg.className = 'mod-avatar';
         avatarImg.src = mod.avatar || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="0 0 50 50"%3E%3Crect width="50" height="50" fill="%23333"/%3E%3Ctext x="25" y="30" font-size="20" text-anchor="middle" fill="%23666"%3E📦%3C/text%3E%3C/svg%3E';
@@ -3937,22 +3733,37 @@ function renderModsList() {
             this.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="0 0 50 50"%3E%3Crect width="50" height="50" fill="%23333"/%3E%3Ctext x="25" y="30" font-size="20" text-anchor="middle" fill="%23666"%3E📦%3C/text%3E%3C/svg%3E';
         };
         div.appendChild(avatarImg);
+        
         const info = document.createElement('div');
         info.className = 'mod-info';
-        info.innerHTML = `<div class="mod-name">${mod.name}</div><div class="mod-author">👤 ${mod.author}</div><div class="mod-status">${mod.enabled ? '🟢 Включён' : '🔴 Выключен'}</div>`;
+        info.innerHTML = `
+            <div class="mod-name">${mod.name}</div>
+            <div class="mod-author">👤 ${mod.author}</div>
+            <div class="mod-status">${mod.enabled ? '🟢 Включён' : '🔴 Выключен'}</div>
+        `;
         div.appendChild(info);
+        
         const actions = document.createElement('div');
         actions.className = 'mod-actions';
+        
         const toggleBtn = document.createElement('button');
         toggleBtn.className = 'mod-btn toggle' + (mod.enabled ? '' : ' off');
         toggleBtn.textContent = mod.enabled ? 'ВКЛ' : 'ВЫКЛ';
-        toggleBtn.onclick = function(e) { e.stopPropagation(); toggleMod(mod.id); };
+        toggleBtn.onclick = function(e) {
+            e.stopPropagation();
+            toggleMod(mod.id);
+        };
         actions.appendChild(toggleBtn);
+        
         const deleteBtn = document.createElement('button');
         deleteBtn.className = 'mod-btn delete';
         deleteBtn.textContent = '✕';
-        deleteBtn.onclick = function(e) { e.stopPropagation(); deleteMod(mod.id); };
+        deleteBtn.onclick = function(e) {
+            e.stopPropagation();
+            deleteMod(mod.id);
+        };
         actions.appendChild(deleteBtn);
+        
         div.appendChild(actions);
         container.appendChild(div);
     });
@@ -3983,8 +3794,11 @@ function showModMessage(text) {
 function showMobileWarning() {
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
                      ('ontouchstart' in window && window.innerWidth <= 1024);
+    
     if (!isMobile) return;
+    
     if (localStorage.getItem('kolblocks_mobile_warning_shown')) return;
+    
     const overlay = document.createElement('div');
     overlay.id = 'mobileWarningOverlay';
     overlay.style.cssText = `
@@ -4001,6 +3815,7 @@ function showMobileWarning() {
         backdrop-filter: blur(10px);
         font-family: 'Unbounded', monospace;
     `;
+    
     const content = document.createElement('div');
     content.style.cssText = `
         background: rgba(26, 26, 46, 0.98);
@@ -4012,6 +3827,7 @@ function showMobileWarning() {
         border: 2px solid #ff6b6b;
         box-shadow: 0 0 30px rgba(255, 107, 107, 0.3);
     `;
+    
     content.innerHTML = `
         <div style="font-size: 64px; margin-bottom: 15px;">📱</div>
         <h2 style="color: #ff6b6b; font-size: 24px; margin-bottom: 15px; font-family: 'Unbounded', monospace;">
@@ -4043,8 +3859,10 @@ function showMobileWarning() {
             letter-spacing: 1px;
         ">ПОНЯТНО, ИГРАТЬ</button>
     `;
+    
     overlay.appendChild(content);
     document.body.appendChild(overlay);
+    
     document.getElementById('mobileWarningBtn').addEventListener('click', () => {
         overlay.style.opacity = '0';
         overlay.style.transition = 'opacity 0.3s';
@@ -4053,7 +3871,6 @@ function showMobileWarning() {
     });
 }
 
-// ==================== ИНИЦИАЛИЗАЦИЯ ====================
 async function initGame(){
     resizeCanvas();
     AudioSys.init();
@@ -4062,16 +3879,20 @@ async function initGame(){
     loadAuraImages();
     particlePool = new ObjectPool((x,y,c) => new Particle(x,y,c), CONFIG.particles.maxCount);
     
-    cacheUIElements();
-    loadAllData();
-    
-    unlockedSkins = DATA_CACHE.skins;
-    unlockedAuras = DATA_CACHE.auras;
-    unlockedTrails = DATA_CACHE.trails;
-    unlockedAccessories = DATA_CACHE.accessories;
-    
     cardCount = parseInt(localStorage.getItem('kolblocks_cards')) || 0;
     updateCardDisplay();
+    
+    installedMods = JSON.parse(localStorage.getItem('kolblocks_mods')) || [];
+    for (const mod of installedMods) {
+        if (mod.enabled) {
+            try {
+                const fn = new Function('CONFIG', mod.code);
+                fn(CONFIG);
+            } catch (err) {
+                console.error('Ошибка при загрузке мода "' + mod.name + '":', err);
+            }
+        }
+    }
     
     let progress = 0;
     const pi = setInterval(() => {
