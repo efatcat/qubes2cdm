@@ -2063,14 +2063,25 @@ class Boss {
     }
 }
 
+// ==================== ГЕНЕРАЦИЯ УРОВНЯ (ОПТИМИЗИРОВАННАЯ) ====================
 function generateLevel(level){ 
     platforms=[]; enemies=[]; flyingEnemies=[]; vortexEnemies=[]; coins=[]; powerUps=[]; levelKeys=[]; 
     roundCoins=0; roundDamage=0; 
     const minHeight=100,maxHeight=canvas.height-150; 
     
-    const platformCount = CONFIG.level.basePlatforms + Math.floor(level * CONFIG.level.platformGrowth); 
-    const enemyCount = CONFIG.level.baseEnemies + Math.floor(level * CONFIG.level.enemyGrowth);
-    const flyingEnemyCount = Math.max(0, Math.floor(level / 3));
+    // УМЕНЬШАЕМ КОЛИЧЕСТВО ОБЪЕКТОВ
+    const platformCount = Math.min(
+        CONFIG.level.basePlatforms + Math.floor(level * CONFIG.level.platformGrowth),
+        25
+    ); 
+    const enemyCount = Math.min(
+        CONFIG.level.baseEnemies + Math.floor(level * CONFIG.level.enemyGrowth),
+        15
+    );
+    const flyingEnemyCount = Math.min(
+        Math.max(0, Math.floor(level / 3)),
+        3
+    );
     
     levelWidth = CONFIG.level.baseWidth + (level - 1) * CONFIG.level.widthGrowth; 
     platforms.push(new Platform(80, canvas.height - 200, 180, 0)); 
@@ -2554,7 +2565,6 @@ function equipSkin(id) {
     if (unlockedSkins.includes(id)) { 
         equippedSkin = id; 
         saveAllData(); 
-        // Принудительно сбрасываем кэш отрисовки
         const g = document.getElementById('skinsGrid');
         if (g) g._cached = null;
         const g2 = document.getElementById('paidSkinsGrid');
@@ -2568,7 +2578,6 @@ function equipAura(id) {
     if (unlockedAuras.includes(id)) { 
         equippedAura = equippedAura === id ? null : id; 
         saveAllData(); 
-        // Принудительно сбрасываем кэш отрисовки
         const g = document.getElementById('aurasGrid');
         if (g) g._cached = null;
         renderAuras(); 
@@ -2579,7 +2588,6 @@ function equipTrail(id) {
     if (unlockedTrails.includes(id)) {
         equippedTrail = id;
         saveAllData();
-        // Принудительно сбрасываем кэш отрисовки
         const g = document.getElementById('trailsGrid');
         if (g) g._cached = null;
         const g2 = document.getElementById('paidTrailsGrid');
@@ -2597,7 +2605,6 @@ function equipAccessory(id) {
     if (unlockedAccessories.includes(id)) {
         equippedAccessory = id;
         saveAllData();
-        // Принудительно сбрасываем кэш отрисовки
         const g = document.getElementById('accessoriesGrid');
         if (g) g._cached = null;
         renderAccessories();
@@ -3429,7 +3436,7 @@ function gameLoop(){
     gameLoopId = requestAnimationFrame(gameLoop);
 }
 
-// ==================== ОПТИМИЗИРОВАННЫЙ ПЕРЕХОД УРОВНЯ ====================
+// ==================== ОПТИМИЗИРОВАННЫЙ ПЕРЕХОД УРОВНЯ (БЕЗ ЗАВИСАНИЙ) ====================
 function completeLevel() {
     if (inputBlocked) return;
     inputBlocked = true;
@@ -3437,42 +3444,45 @@ function completeLevel() {
     gameRunning = false;
     if (gameLoopId) cancelAnimationFrame(gameLoopId);
     
-    AudioSys.levelComplete();
-    changeBiom();
-    addScore(1000 * currentLevel);
-    
-    const levelScore = Math.floor(1000 * currentLevel * comboMultiplier);
-    const eloResult = calculateEloChange();
-    const maxComboValue = maxCombo;
-    const roundCoinsValue = roundCoins;
-    const roundDamageValue = roundDamage;
-    
-    const ls = document.getElementById('levelScore');
-    if(ls) ls.textContent = levelScore;
-    const mc = document.getElementById('maxCombo');
-    if(mc) mc.textContent = `x${maxComboValue}`;
-    const cc = document.getElementById('coinsCollected');
-    if(cc) cc.textContent = roundCoinsValue;
-    const dt = document.getElementById('damageTaken');
-    if(dt) dt.textContent = roundDamageValue;
-    const eloChangeEl = document.getElementById('eloChangeDisplay');
-    if(eloChangeEl) {
-        eloChangeEl.textContent = (eloResult.change >= 0 ? '+' : '') + eloResult.change;
-        eloChangeEl.style.color = eloResult.change >= 0 ? '#4af626' : '#ff2e63';
-    }
-    
+    // ПОКАЗЫВАЕМ ЭКРАН ЗАВЕРШЕНИЯ СРАЗУ
     const lcDiv = document.getElementById('levelComplete');
-    if(lcDiv) lcDiv.style.display = 'flex';
-    showEloChange(eloResult.change);
+    if (lcDiv) lcDiv.style.display = 'flex';
     
-    const playerX = player.x + player.width / 2;
-    const playerY = player.y + player.height / 2;
-    let particlesSpawned = 0;
-    const maxParticles = 40;
-    
-    function spawnParticle() {
-        if (particlesSpawned >= maxParticles) {
-            requestAnimationFrame(() => {
+    // ВСЕ ТЯЖЁЛЫЕ ОПЕРАЦИИ — С ЗАДЕРЖКОЙ
+    setTimeout(() => {
+        AudioSys.levelComplete();
+        changeBiom();
+        addScore(1000 * currentLevel);
+        
+        const levelScore = Math.floor(1000 * currentLevel * comboMultiplier);
+        const eloResult = calculateEloChange();
+        
+        // ОБНОВЛЯЕМ UI
+        const ls = document.getElementById('levelScore');
+        if (ls) ls.textContent = levelScore;
+        const mc = document.getElementById('maxCombo');
+        if (mc) mc.textContent = `x${maxCombo}`;
+        const cc = document.getElementById('coinsCollected');
+        if (cc) cc.textContent = roundCoins;
+        const dt = document.getElementById('damageTaken');
+        if (dt) dt.textContent = roundDamage;
+        const eloChangeEl = document.getElementById('eloChangeDisplay');
+        if (eloChangeEl) {
+            eloChangeEl.textContent = (eloResult.change >= 0 ? '+' : '') + eloResult.change;
+            eloChangeEl.style.color = eloResult.change >= 0 ? '#4af626' : '#ff2e63';
+        }
+        
+        showEloChange(eloResult.change);
+        
+        // ЧАСТИЦЫ — МЕЛКИМИ ПОРЦИЯМИ
+        let particlesSpawned = 0;
+        const maxParticles = 25;
+        const playerX = player.x + player.width / 2;
+        const playerY = player.y + player.height / 2;
+        
+        function spawnParticle() {
+            if (particlesSpawned >= maxParticles) {
+                // ГЕНЕРИРУЕМ НОВЫЙ УРОВЕНЬ
                 setTimeout(() => {
                     currentLevel++;
                     generateLevel(currentLevel);
@@ -3489,24 +3499,25 @@ function completeLevel() {
                     updateEloDisplay();
                     
                     const lcDiv2 = document.getElementById('levelComplete');
-                    if(lcDiv2) lcDiv2.style.display = 'none';
+                    if (lcDiv2) lcDiv2.style.display = 'none';
                     
                     inputBlocked = false;
                     gameRunning = true;
                     gameLoop();
-                }, 150);
-            });
-            return;
+                }, 80);
+                return;
+            }
+            
+            particlePool.acquire(
+                playerX + (Math.random() - 0.5) * 20,
+                playerY + (Math.random() - 0.5) * 20,
+                platformTextures[Math.floor(Math.random() * platformTextures.length)].color
+            );
+            particlesSpawned++;
+            setTimeout(spawnParticle, 5);
         }
-        particlePool.acquire(
-            playerX + (Math.random() - 0.5) * 20,
-            playerY + (Math.random() - 0.5) * 20,
-            platformTextures[Math.floor(Math.random() * platformTextures.length)].color
-        );
-        particlesSpawned++;
-        setTimeout(spawnParticle, 10);
-    }
-    spawnParticle();
+        spawnParticle();
+    }, 150);
 }
 
 function gameOver(){
@@ -3590,6 +3601,7 @@ function performMelee(){
     if(gameRunning && player) player.meleeAttack();
 }
 
+// ==================== БИОМЫ (ОПТИМИЗИРОВАННАЯ ЗАГРУЗКА) ====================
 function changeBiom() {
     let loadedBiom = null;
     for (let i = 0; i < biomImages.length; i++) {
@@ -3612,17 +3624,17 @@ function startAsyncBiomLoading() {
     if (biomLoadingStarted) return;
     biomLoadingStarted = true;
     
+    // ЗАГРУЖАЕМ ТОЛЬКО 10 ФАЙЛОВ (вместо 50+)
     const possibleFiles = [];
-    for (let i = 1; i <= 50; i++) {
+    for (let i = 1; i <= 10; i++) {
         possibleFiles.push(`bioms/biom${i}.png`);
         possibleFiles.push(`bioms/biom${i}.jpg`);
     }
     
-    const namedFiles = ['forest', 'cave', 'mountain', 'volcano', 'ice', 'swamp', 'jungle', 'ruins', 'temple', 'waterfall', 'cliffs', 'valley', 'desert', 'snow', 'lava', 'abyss', 'sky', 'ocean'];
+    const namedFiles = ['forest', 'cave', 'mountain', 'volcano', 'ice', 'swamp', 'jungle', 'ruins'];
     for (const name of namedFiles) {
         possibleFiles.push(`bioms/${name}.png`);
         possibleFiles.push(`bioms/${name}.jpg`);
-        possibleFiles.push(`bioms/${name}.webp`);
     }
     
     let loadedCount = 0;
@@ -3654,6 +3666,16 @@ function startAsyncBiomLoading() {
         };
         img.src = file;
     });
+    
+    // ЕСЛИ ЗАГРУЗКА ЗАТЯНУЛАСЬ — ЧЕРЕЗ 2 СЕКУНДЫ ПОКАЗЫВАЕМ ВСТРОЕННЫЙ
+    setTimeout(() => {
+        if (!biomLoaded) {
+            console.log('⏱️ Таймаут загрузки биомов, показываем встроенный');
+            const randomBiom = BUILTIN_BIOMS[Math.floor(Math.random() * BUILTIN_BIOMS.length)];
+            currentBiom = randomBiom;
+            biomLoaded = true;
+        }
+    }, 2000);
 }
 
 function selectRandomBiom() {
