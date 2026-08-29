@@ -1,4 +1,4 @@
-// game.js - QUBES v2.3 - NO CLASSES, NO ARCHER
+// game.js - QUBES v2.3 - NO CLASSES, NO ARCHER, BIOMS FIXED
 
 const CONFIG = {
     player: { width: 40, height: 40, speed: 6, jumpPower: 16, gravity: 0.8, friction: 0.85, dashSpeed: 20, dashDuration: 12, dashCooldown: 45, maxDashes: 2, doubleJump: true },
@@ -2974,7 +2974,7 @@ function loadAuraImages() {
     explosionGif.src = 'vzryv.gif';
 }
 
-// ==================== АУРЫ (ВОССТАНОВЛЕННЫЙ "ТУМАН") ====================
+// ==================== АУРЫ (С "ТУМАНОМ" КАК В v2.2) ====================
 function showAuraEffectOnPlayer(x, y, aura) {
     if(activeAuraEffect) { 
         activeAuraEffect.remove(); 
@@ -2992,7 +2992,7 @@ function showAuraEffectOnPlayer(x, y, aura) {
     effect.style.width = '300px';
     effect.style.height = '300px';
     
-    // БАТИДАО
+    // ==================== БАТИДАО ====================
     if(aura.id === 'batidao_aura') {
         effect.style.background = `radial-gradient(circle, ${aura.effectColor} 0%, transparent 70%)`;
         if(batidaoImage) {
@@ -3021,7 +3021,7 @@ function showAuraEffectOnPlayer(x, y, aura) {
             }, i * 10);
         }
     }
-    // ВЗРЫВ
+    // ==================== ВЗРЫВ ====================
     else if(aura.id === 'explosion_aura' && explosionGif) {
         effect.style.background = `radial-gradient(circle, #ff0000, #ff6600, #ffff00, transparent)`;
         effect.style.backgroundImage = `url(${explosionGif.src})`;
@@ -3052,7 +3052,7 @@ function showAuraEffectOnPlayer(x, y, aura) {
             }, i * 8);
         }
     }
-    // ОГУРЕЦ
+    // ==================== ОГУРЕЦ ====================
     else if(aura.id === 'cucumber_aura' && cucumberImage) {
         effect.style.background = `radial-gradient(circle, ${aura.effectColor} 0%, transparent 70%)`;
         effect.style.backgroundImage = `url(${cucumberImage.src})`;
@@ -3079,7 +3079,7 @@ function showAuraEffectOnPlayer(x, y, aura) {
             }, i * 12);
         }
     }
-    // ПОДСОЛНЕЧНАЯ
+    // ==================== ПОДСОЛНЕЧНАЯ ====================
     else if(aura.id === 'sunflower_aura') {
         effect.style.background = `radial-gradient(circle, ${aura.effectColor} 0%, #FFD700 30%, transparent 70%)`;
         effect.style.boxShadow = `0 0 50px ${aura.color}, 0 0 80px #FFA500`;
@@ -3103,7 +3103,7 @@ function showAuraEffectOnPlayer(x, y, aura) {
             }, i * 15);
         }
     }
-    // ВИШНЁВАЯ
+    // ==================== ВИШНЁВАЯ ====================
     else if(aura.id === 'cherry_aura') {
         effect.style.background = `radial-gradient(circle, #ff3366, #ff6699, transparent)`;
         effect.style.boxShadow = `0 0 40px #ff3366`;
@@ -3125,7 +3125,7 @@ function showAuraEffectOnPlayer(x, y, aura) {
             }, i * 10);
         }
     }
-    // ЛАВАНДОВАЯ
+    // ==================== ЛАВАНДОВАЯ ====================
     else if(aura.id === 'lavender_aura') {
         effect.style.background = `radial-gradient(circle, #E6E6FA, #D8BFD8, transparent)`;
         effect.style.boxShadow = `0 0 40px #D8BFD8`;
@@ -3147,7 +3147,7 @@ function showAuraEffectOnPlayer(x, y, aura) {
             }, i * 15);
         }
     }
-    // РОЗОВАЯ
+    // ==================== РОЗОВАЯ ====================
     else if(aura.id === 'rose_aura') {
         effect.style.background = `radial-gradient(circle, #FF69B4, #FF1493, transparent)`;
         effect.style.boxShadow = `0 0 40px #FF69B4`;
@@ -3169,7 +3169,7 @@ function showAuraEffectOnPlayer(x, y, aura) {
             }, i * 15);
         }
     }
-    // ВЕСЕННЯЯ
+    // ==================== ВЕСЕННЯЯ ====================
     else if(aura.id === 'spring_aura') {
         effect.style.background = `radial-gradient(circle, #00FA9A, #3CB371, transparent)`;
         effect.style.boxShadow = `0 0 40px #00FA9A`;
@@ -3191,7 +3191,7 @@ function showAuraEffectOnPlayer(x, y, aura) {
             }, i * 10);
         }
     }
-    // ОСТАЛЬНЫЕ
+    // ==================== ОСТАЛЬНЫЕ АУРЫ ====================
     else {
         effect.style.background = `radial-gradient(circle, ${aura.effectColor}, transparent)`;
         effect.style.boxShadow = `0 0 40px ${aura.color}`;
@@ -3409,9 +3409,11 @@ function changeBiom() {
     }
 }
 
+// ==================== ЗАГРУЗКА БИОМОВ (БЕЗ БЛОКИРУЮЩИХ ТАЙМАУТОВ) ====================
 function startAsyncBiomLoading() {
     if (biomLoadingStarted) return;
     biomLoadingStarted = true;
+    
     const possibleFiles = [];
     for (let i = 1; i <= 50; i++) {
         possibleFiles.push(`bioms/biom${i}.png`);
@@ -3423,25 +3425,54 @@ function startAsyncBiomLoading() {
         possibleFiles.push(`bioms/${name}.jpg`);
         possibleFiles.push(`bioms/${name}.webp`);
     }
+    
     let loadedCount = 0;
     let totalToLoad = possibleFiles.length;
     biomImages = new Array(totalToLoad);
     biomFileNames = new Array(totalToLoad);
+    
     function checkComplete() {
         loadedCount++;
         if (loadedCount >= totalToLoad) {
             const validCount = biomFileNames.filter(f => f !== null).length;
-            console.log(`Загружено биомов: ${validCount} шт.`);
+            console.log(`✅ Загружено биомов: ${validCount} шт.`);
             biomLoaded = true;
             selectRandomBiom();
         }
     }
+    
     possibleFiles.forEach((file, index) => {
         const img = new Image();
-        img.onload = () => { biomImages[index] = img; biomFileNames[index] = file; checkComplete(); };
-        img.onerror = () => { biomImages[index] = null; biomFileNames[index] = null; checkComplete(); };
+        img.onload = () => {
+            biomImages[index] = img;
+            biomFileNames[index] = file;
+            checkComplete();
+        };
+        img.onerror = () => {
+            biomImages[index] = null;
+            biomFileNames[index] = null;
+            checkComplete();
+        };
         img.src = file;
     });
+    
+    // Страховка через 15 секунд — если ничего не загрузилось, используем встроенные
+    setTimeout(() => {
+        if (!biomLoaded) {
+            const validIndices = [];
+            for (let i = 0; i < biomImages.length; i++) {
+                if (biomImages[i] !== null && biomImages[i].complete && biomImages[i].naturalWidth > 0) {
+                    validIndices.push(i);
+                }
+            }
+            if (validIndices.length === 0 && !biomLoaded) {
+                console.warn('⚠️ Биомы не загрузились, используем встроенные');
+                biomLoaded = true;
+                const randomBiom = BUILTIN_BIOMS[Math.floor(Math.random() * BUILTIN_BIOMS.length)];
+                currentBiom = randomBiom;
+            }
+        }
+    }, 15000);
 }
 
 function selectRandomBiom() {
