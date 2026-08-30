@@ -1,4 +1,4 @@
-// game.js - QUBES v2.3 - NO CLASSES, NO ARCHER, BIOMS FIXED
+// game.js - QUBES v2.3 - NO CLASSES, NO ARCHER, BIOMS FIXED (ONLY biom1-50)
 
 const CONFIG = {
     player: { width: 40, height: 40, speed: 6, jumpPower: 16, gravity: 0.8, friction: 0.85, dashSpeed: 20, dashDuration: 12, dashCooldown: 45, maxDashes: 2, doubleJump: true },
@@ -141,6 +141,7 @@ let biomImages = [];
 let biomLoaded = false;
 let biomFileNames = [];
 let biomLoadingStarted = false;
+let biomLoadAttempts = 0;
 
 const BUILTIN_BIOMS = [
     { type: 'gradient', colors: ['#0a0a1a', '#1a1a2e'], name: 'Тёмный лес' },
@@ -422,6 +423,7 @@ const bossTextures = { images: [], loaded: false, specialUrls: [] };
 bossTextures.load = function() { return Promise.resolve(); };
 bossTextures.getRandomTexture = function(colors) { return { type: 'color', color: colors[Math.floor(Math.random() * colors.length)] }; };
 
+// ==================== КЛАСС PLAYER ====================
 class Player {
     constructor() { this.reset(); }
     
@@ -1348,6 +1350,7 @@ class Player {
     }
 }
 
+// ==================== КЛАССЫ ВРАГОВ ====================
 class Enemy { 
     constructor(x,y,type=0){
         this.x=x;this.y=y;this.width=40;this.height=40;
@@ -1950,6 +1953,7 @@ class Boss {
     }
 }
 
+// ==================== ГЕНЕРАЦИЯ УРОВНЯ ====================
 function generateLevel(level){ 
     platforms=[]; enemies=[]; flyingEnemies=[]; vortexEnemies=[]; coins=[]; powerUps=[]; levelKeys=[]; 
     roundCoins=0; roundDamage=0; 
@@ -2091,7 +2095,9 @@ function updatePowerUps(){for(let i=powerUps.length-1;i>=0;i--){const p=powerUps
 function checkEnemyCollisions(){for(let e of enemies){if(e.active&&player.checkCollision(e)){if(player.takeDamage(20,e.x<player.x?10:-10,-8,e.color))return;}}for(let e of flyingEnemies){if(e.active&&player.checkCollision(e)){if(player.takeDamage(25,e.x<player.x?12:-12,-10,'#FF00FF'))return;}}for(let e of vortexEnemies){if(e.active&&player.checkCollision(e)){if(player.takeDamage(15,e.x<player.x?8:-8,-6,'#00ccff'))return;}}}
 function checkCheckpoints(){if(player.x>lastCheckpointX+800){lastCheckpointX=player.x;player.saveCheckpoint();}}
 
+// ==================== ОТРИСОВКА ====================
 function drawBackground() {
+    // Пробуем отобразить загруженный биом
     if (currentBiom && currentBiom.tagName === 'IMG' && currentBiom.complete && currentBiom.naturalWidth > 0) {
         const imgWidth = currentBiom.width;
         const imgHeight = currentBiom.height;
@@ -2110,8 +2116,38 @@ function drawBackground() {
         gradient.addColorStop(1, 'rgba(0, 0, 0, 0.6)');
         ctx.fillStyle = gradient;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
+        return;
     }
-    else if (currentBiom && currentBiom.type === 'gradient') {
+    
+    // Если биом не загружен — проверяем, может уже есть загруженные в массиве
+    if (biomImages.length > 0) {
+        for (let i = 0; i < biomImages.length; i++) {
+            const img = biomImages[i];
+            if (img && img.complete && img.naturalWidth > 0) {
+                const imgWidth = img.width;
+                const imgHeight = img.height;
+                const canvasWidth = canvas.width;
+                const canvasHeight = canvas.height;
+                const scaleX = canvasWidth / imgWidth;
+                const scaleY = canvasHeight / imgHeight;
+                const scale = Math.max(scaleX, scaleY);
+                const scaledWidth = imgWidth * scale;
+                const scaledHeight = imgHeight * scale;
+                const x = (canvasWidth - scaledWidth) / 2;
+                const y = (canvasHeight - scaledHeight) / 2;
+                ctx.drawImage(img, x, y, scaledWidth, scaledHeight);
+                const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                gradient.addColorStop(0, 'rgba(0, 0, 0, 0.4)');
+                gradient.addColorStop(1, 'rgba(0, 0, 0, 0.6)');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                return;
+            }
+        }
+    }
+    
+    // Если ничего не загрузилось — используем встроенные градиенты
+    if (currentBiom && currentBiom.type === 'gradient') {
         const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
         grad.addColorStop(0, currentBiom.colors[0]);
         grad.addColorStop(1, currentBiom.colors[1]);
@@ -2119,23 +2155,24 @@ function drawBackground() {
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.fillStyle = 'rgba(255,255,255,0.03)';
         for (let i = 0; i < 200; i++) ctx.fillRect(Math.random() * canvas.width, Math.random() * canvas.height, 2, 2);
+        return;
     }
-    else {
-        const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-        grad.addColorStop(0, '#0a0a1a');
-        grad.addColorStop(1, '#000000');
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        for (let layer = 0; layer < 3; layer++) {
-            const spd = 0.05 + layer * 0.1;
-            const alpha = 0.1 + layer * 0.15;
-            const size = 1 + layer * 0.5;
-            ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
-            for (let i = 0; i < 40; i++) {
-                const x = (i * 67 + cameraX * spd) % canvas.width;
-                const y = (i * 41 + layer * 100) % canvas.height;
-                ctx.fillRect(x, y, size, size);
-            }
+    
+    // Финальный fallback
+    const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    grad.addColorStop(0, '#0a0a1a');
+    grad.addColorStop(1, '#000000');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    for (let layer = 0; layer < 3; layer++) {
+        const spd = 0.05 + layer * 0.1;
+        const alpha = 0.1 + layer * 0.15;
+        const size = 1 + layer * 0.5;
+        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+        for (let i = 0; i < 40; i++) {
+            const x = (i * 67 + cameraX * spd) % canvas.width;
+            const y = (i * 41 + layer * 100) % canvas.height;
+            ctx.fillRect(x, y, size, size);
         }
     }
 }
@@ -3394,36 +3431,47 @@ function performMelee(){
     if(gameRunning && player) player.meleeAttack();
 }
 
+// ==================== СИСТЕМА БИОМОВ (ТОЛЬКО biom1-50) ====================
 function changeBiom() {
-    if (!biomLoaded && biomLoadingStarted) return;
+    // Сначала проверяем уже загруженные изображения
     const validIndices = [];
     for (let i = 0; i < biomImages.length; i++) {
-        if (biomImages[i] !== null && biomImages[i].complete && biomImages[i].naturalWidth > 0) validIndices.push(i);
+        if (biomImages[i] !== null && biomImages[i].complete && biomImages[i].naturalWidth > 0) {
+            validIndices.push(i);
+        }
     }
+    
     if (validIndices.length > 0) {
         const randomIndex = validIndices[Math.floor(Math.random() * validIndices.length)];
         currentBiom = biomImages[randomIndex];
-    } else if (BUILTIN_BIOMS.length > 0) {
+        console.log(`🌄 Биом сменён на biom${randomIndex + 1}`);
+        return;
+    }
+    
+    // Если биомы загружены, но нет валидных изображений
+    if (biomLoaded) {
+        console.warn('⚠️ Нет валидных биомов, используем встроенный');
         const randomBiom = BUILTIN_BIOMS[Math.floor(Math.random() * BUILTIN_BIOMS.length)];
         currentBiom = randomBiom;
+        return;
     }
+    
+    // Если биомы ещё не загружены — используем встроенный
+    const randomBiom = BUILTIN_BIOMS[Math.floor(Math.random() * BUILTIN_BIOMS.length)];
+    currentBiom = randomBiom;
+    console.log('🌄 Используем встроенный биом (градиент)');
 }
 
-// ==================== ЗАГРУЗКА БИОМОВ (БЕЗ БЛОКИРУЮЩИХ ТАЙМАУТОВ) ====================
 function startAsyncBiomLoading() {
     if (biomLoadingStarted) return;
     biomLoadingStarted = true;
+    console.log('🌄 Начинаем загрузку биомов (biom1-50)...');
     
+    // Только biom1.png - biom50.png и biom1.jpg - biom50.jpg
     const possibleFiles = [];
     for (let i = 1; i <= 50; i++) {
         possibleFiles.push(`bioms/biom${i}.png`);
         possibleFiles.push(`bioms/biom${i}.jpg`);
-    }
-    const namedFiles = ['forest', 'cave', 'mountain', 'volcano', 'ice', 'swamp', 'jungle', 'ruins', 'temple', 'waterfall', 'cliffs', 'valley', 'desert', 'snow', 'lava', 'abyss', 'sky', 'ocean'];
-    for (const name of namedFiles) {
-        possibleFiles.push(`bioms/${name}.png`);
-        possibleFiles.push(`bioms/${name}.jpg`);
-        possibleFiles.push(`bioms/${name}.webp`);
     }
     
     let loadedCount = 0;
@@ -3433,11 +3481,15 @@ function startAsyncBiomLoading() {
     
     function checkComplete() {
         loadedCount++;
+        if (loadedCount % 10 === 0 || loadedCount === totalToLoad) {
+            console.log(`🌄 Загрузка биомов: ${Math.round(loadedCount/totalToLoad*100)}% (${loadedCount}/${totalToLoad})`);
+        }
         if (loadedCount >= totalToLoad) {
             const validCount = biomFileNames.filter(f => f !== null).length;
-            console.log(`✅ Загружено биомов: ${validCount} шт.`);
+            console.log(`✅ Загружено биомов: ${validCount} шт. из ${totalToLoad}`);
             biomLoaded = true;
-            selectRandomBiom();
+            // Выбираем первый случайный биом
+            changeBiom();
         }
     }
     
@@ -3456,7 +3508,7 @@ function startAsyncBiomLoading() {
         img.src = file;
     });
     
-    // Страховка через 15 секунд — если ничего не загрузилось, используем встроенные
+    // Страховка через 10 секунд
     setTimeout(() => {
         if (!biomLoaded) {
             const validIndices = [];
@@ -3465,28 +3517,19 @@ function startAsyncBiomLoading() {
                     validIndices.push(i);
                 }
             }
-            if (validIndices.length === 0 && !biomLoaded) {
+            if (validIndices.length > 0) {
+                console.log(`🌄 Загружено ${validIndices.length} биомов (частично)`);
+                biomLoaded = true;
+                const randomIndex = validIndices[Math.floor(Math.random() * validIndices.length)];
+                currentBiom = biomImages[randomIndex];
+            } else {
                 console.warn('⚠️ Биомы не загрузились, используем встроенные');
                 biomLoaded = true;
                 const randomBiom = BUILTIN_BIOMS[Math.floor(Math.random() * BUILTIN_BIOMS.length)];
                 currentBiom = randomBiom;
             }
         }
-    }, 15000);
-}
-
-function selectRandomBiom() {
-    const validIndices = [];
-    for (let i = 0; i < biomImages.length; i++) {
-        if (biomImages[i] !== null && biomImages[i].complete && biomImages[i].naturalWidth > 0) validIndices.push(i);
-    }
-    if (validIndices.length > 0) {
-        const randomIndex = validIndices[Math.floor(Math.random() * validIndices.length)];
-        currentBiom = biomImages[randomIndex];
-    } else {
-        const randomBiom = BUILTIN_BIOMS[Math.floor(Math.random() * BUILTIN_BIOMS.length)];
-        currentBiom = randomBiom;
-    }
+    }, 10000);
 }
 
 function handleKeyDown(e) {
